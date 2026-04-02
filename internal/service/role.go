@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"managify/database"
+	"managify/internal/repository"
 
 	"managify/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type RoleService struct {
@@ -59,11 +58,11 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 		return nil, fmt.Errorf("user is not part of the project")
 	}
 
-	collection := database.DB.Collection(s.Collection)
+	roleRepo := repository.NewRoleRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = collection.InsertOne(ctx, role)
+	err = roleRepo.InsertOne(ctx, role)
 	if err != nil {
 		log.WithError(err).Error("failed to insert role")
 		return nil, err
@@ -84,17 +83,17 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 }
 
 func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
-	collection := database.DB.Collection(s.Collection)
+	roleRepo := repository.NewRoleRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	res, err := collection.DeleteOne(ctx, bson.M{"_id": deleteId})
+	deletedCount, err := roleRepo.DeleteByID(ctx, deleteId)
 	if err != nil {
 		log.WithError(err).Error("failed to delete role")
 		return err
 	}
 
-	if res.DeletedCount == 0 {
+	if deletedCount == 0 {
 		return fmt.Errorf("role not found")
 	}
 
@@ -102,22 +101,14 @@ func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
 }
 
 func (s *ProjectService) IsOwner(ownerId, projectId primitive.ObjectID) (bool, error) {
-	collection := database.DB.Collection(s.Collection)
+	projectRepo := repository.NewProjectRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var role models.Role
-	err := collection.FindOne(ctx, bson.M{
-		"owner_id": ownerId,
-		"_id":      projectId,
-	}).Decode(&role)
-
+	isOwner, err := projectRepo.VerifyProjectOwner(ctx, projectId, ownerId)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, nil
-		}
 		return false, err
 	}
 
-	return true, nil
+	return isOwner, nil
 }

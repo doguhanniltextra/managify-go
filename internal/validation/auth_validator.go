@@ -4,18 +4,15 @@ import (
 	"context"
 	"managify/database"
 	"managify/dto/request"
-	"managify/internal/service"
-	"managify/models"
+	"managify/internal/repository"
 	"regexp"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func AuthValidator(c *fiber.Ctx) error {
-	us := service.GetUserService()
 	log := logrus.New()
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
@@ -47,13 +44,12 @@ func AuthValidator(c *fiber.Ctx) error {
 		})
 	}
 
-	collection := database.DB.Collection(us.Collection)
+	userRepo := repository.NewUserRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user models.User
-	err := collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
-	if err != nil {
+	user, err := userRepo.FindByEmail(ctx, req.Email)
+	if err != nil || user == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Invalid email or password",
 		})

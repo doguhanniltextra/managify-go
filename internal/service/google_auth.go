@@ -8,23 +8,27 @@ import (
 	"managify/database"
 	"managify/internal/dto"
 	"managify/internal/middleware"
+	"managify/internal/repository"
 	"managify/models"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type GoogleAuthService struct{}
+type GoogleAuthService struct {
+	userRepo repository.UserRepository
+}
 
 var googleAuthService *GoogleAuthService
 
 func GetGoogleAuthService() *GoogleAuthService {
 	if googleAuthService == nil {
-		googleAuthService = &GoogleAuthService{}
+		googleAuthService = &GoogleAuthService{
+			userRepo: repository.NewUserRepository(database.DB),
+		}
 	}
 	return googleAuthService
 }
@@ -144,26 +148,25 @@ func (s *GoogleAuthService) getUserInfo(accessToken string) (*dto.GoogleUserInfo
 }
 
 func (s *GoogleAuthService) findOrCreateGoogleUser(info *dto.GoogleUserInfo) (*models.User, error) {
-	collection := database.DB.Collection("users")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var existingUser models.User
-	err := collection.FindOne(ctx, bson.M{"email": info.Email}).Decode(&existingUser)
+	// 1. Repository üzerinden e-posta ile mevcut kullanıcıyı ara
+	existingUser, err := s.userRepo.FindByEmail(ctx, info.Email)
 
-	if err == nil {
-		_, updateErr := collection.UpdateOne(ctx,
-			bson.M{"_id": existingUser.ID},
-			bson.M{"$set": bson.M{"google_id": info.Sub}},
-		)
+	if err == nil && existingUser != nil {
+		// Kullanıcı zaten var — google_id'yi güncelle (hesap bağlama)
+		updateErr := s.userRepo.LinkGoogleID(ctx, existingUser.ID, info.Sub)
 		if updateErr != nil {
 			log.WithError(updateErr).Warn("Failed to link Google ID to existing user")
+			// Link başarısız olsa bile login'e devam et
 		}
 		existingUser.GoogleID = info.Sub
-		return &existingUser, nil
+		return existingUser, nil
 	}
 
-	newUser := models.User{
+	// 2. Yoksa yeni kullanıcı oluştur
+	newUser := &models.User{
 		ID:           primitive.NewObjectID(),
 		FullName:     info.Name,
 		Email:        info.Email,
@@ -175,8 +178,8 @@ func (s *GoogleAuthService) findOrCreateGoogleUser(info *dto.GoogleUserInfo) (*m
 		ProjectSize:  0,
 	}
 
-	if _, err := collection.InsertOne(ctx, &newUser); err != nil {
-		return nil, fmt.Errorf("failed to create Google user: %w", err)
+	if insertErr := s.userRepo.InsertOne(ctx, newUser); insertErr != nil {
+		return nil, fmt.Errorf("failed to create Google user: %w", insertErr)
 	}
 
 	subscription := models.Subscription{
@@ -193,5 +196,5 @@ func (s *GoogleAuthService) findOrCreateGoogleUser(info *dto.GoogleUserInfo) (*m
 	}
 
 	log.Infof("New Google user created: %s (%s)", newUser.Email, newUser.ID.Hex())
-	return &newUser, nil
+	return newUser, nil
 }

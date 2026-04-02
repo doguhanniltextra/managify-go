@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"managify/database"
+	"managify/internal/repository"
 	"managify/models"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type SubscriptionService struct {
-	Collection string
+	subscriptionRepo repository.SubscriptionRepository
 }
 
 var subscriptionService *SubscriptionService
@@ -29,7 +28,9 @@ func init() {
 
 func GetSubscriptionService() *SubscriptionService {
 	if subscriptionService == nil {
-		subscriptionService = &SubscriptionService{Collection: "subscriptions"}
+		subscriptionService = &SubscriptionService{
+			subscriptionRepo: repository.NewSubscriptionRepository(database.DB),
+		}
 	}
 	return subscriptionService
 }
@@ -43,31 +44,18 @@ func (s *SubscriptionService) GetByUserId(userIDHex string) (*models.Subscriptio
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := database.DB.Collection(s.Collection)
-	var subscription models.Subscription
-
-	err = collection.FindOne(ctx, bson.M{"user_id": userObjID}).Decode(&subscription)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &subscription, nil
+	return s.subscriptionRepo.FindByUserID(ctx, userObjID)
 }
 
 func (s *SubscriptionService) CreateSubscription(subscription *models.Subscription) (*models.Subscription, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := database.DB.Collection(s.Collection)
-
 	if subscription.ID.IsZero() {
 		subscription.ID = primitive.NewObjectID()
 	}
 
-	_, err := collection.InsertOne(ctx, subscription)
+	err := s.subscriptionRepo.InsertOne(ctx, subscription)
 	if err != nil {
 		return nil, err
 	}

@@ -9,22 +9,20 @@ import (
 	"managify/dto/request"
 	"managify/dto/response"
 	"managify/internal/middleware"
+	"managify/internal/repository"
 	"net/smtp"
 	"os"
+	"time"
 
 	"managify/models"
 
-	"time"
-
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
-	Collection      string
+	userRepo        repository.UserRepository
 	EncryptPassword func([]byte) ([]byte, error)
 	CreateToken     func(*models.User) (string, error)
 }
@@ -41,9 +39,11 @@ func init() {
 
 func GetUserService() *UserService {
 	if userService == nil {
-		userService = &UserService{Collection: "users"}
-		userService.CreateToken = middleware.CreateToken
-		userService.EncryptPassword = encryptPassword
+		userService = &UserService{
+			userRepo:        repository.NewUserRepository(database.DB),
+			CreateToken:     middleware.CreateToken,
+			EncryptPassword: encryptPassword,
+		}
 	}
 	return userService
 }
@@ -88,7 +88,6 @@ func sendVerificationEmail(email, token string) error {
 
 func (s *UserService) CreateUser(user *models.User) (*models.User, string, error) {
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -107,7 +106,7 @@ func (s *UserService) CreateUser(user *models.User) (*models.User, string, error
 	user.VerificationToken = verifyToken
 	user.IsVerified = false
 
-	_, err = collection.InsertOne(ctx, user)
+	err = s.userRepo.InsertOne(ctx, user)
 	if err != nil {
 		log.Errorf("Failed to insert user into DB: %v", err)
 		return nil, "", err
@@ -127,39 +126,32 @@ func (s *UserService) CreateUser(user *models.User) (*models.User, string, error
 }
 
 func (s *UserService) VerifyEmail(token string) (*models.User, error) {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user models.User
-	err := collection.FindOne(ctx, bson.M{"verificationtoken": token}).Decode(&user)
+	user, err := s.userRepo.FindByVerificationToken(ctx, token)
 	if err != nil {
 		fmt.Println("Error finding user with token:", err)
 		return nil, err
 	}
 
-	update := bson.M{"$set": bson.M{"isverified": true, "verificationtoken": ""}}
-	filter := bson.M{"_id": user.ID}
-	_, err = collection.UpdateOne(ctx, filter, update)
+	err = s.userRepo.VerifyUser(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
 	user.IsVerified = true
 	user.VerificationToken = ""
 
-	return &user, nil
+	return user, nil
 }
 
 func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginResponse, error) {
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var user models.User
-	filter := bson.M{"email": req.Email}
-	err := collection.FindOne(ctx, filter).Decode(&user)
-	if err != nil {
+	user, err := s.userRepo.FindByEmail(ctx, req.Email)
+	if err != nil || user == nil {
 		log.Warnf("User not found: %s", req.Email)
 		return nil, fmt.Errorf("invalid email or password")
 	}
@@ -169,7 +161,7 @@ func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginR
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	tokenString, err := s.CreateToken(&user)
+	tokenString, err := s.CreateToken(user)
 	if err != nil {
 		return nil, fmt.Errorf("could not generate token")
 	}
@@ -188,18 +180,16 @@ func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginR
 }
 
 func (s *UserService) IsUserValid(userId primitive.ObjectID) (bool, error) {
-
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var user models.User
 
-	filter := bson.M{"_id": userId}
-	err := collection.FindOne(ctx, filter).Decode(&user)
-
+	user, err := s.userRepo.FindByID(ctx, userId)
 	if err != nil {
 		log.WithError(err).Error("failed to fetch user")
 		return false, err
+	}
+	if user == nil {
+		return false, nil
 	}
 	return true, nil
 }
@@ -213,7 +203,6 @@ func encryptPassword(givenPassword []byte) (password []byte, error error) {
 }
 
 func (s *UserService) GetUserByGivenId(givenId string) (*models.User, error) {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -222,15 +211,5 @@ func (s *UserService) GetUserByGivenId(givenId string) (*models.User, error) {
 		return nil, err
 	}
 
-	var user models.User
-	filter := bson.M{"_id": objID}
-	err = collection.FindOne(ctx, filter).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
+	return s.userRepo.FindByID(ctx, objID)
 }

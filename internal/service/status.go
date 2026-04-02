@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"managify/database"
+	"managify/internal/repository"
 	"managify/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -49,21 +49,18 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 		return nil, fmt.Errorf("user is not part of the project")
 	}
 
-	collection := database.DB.Collection(s.Collection)
+	statusRepo := repository.NewStatusRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	status.CreatedAt = time.Now()
 	status.UpdatedAt = time.Now()
 
-	res, err := collection.InsertOne(ctx, status)
+	status.ID = primitive.NewObjectID()
+	err = statusRepo.InsertOne(ctx, status)
 	if err != nil {
 		log.WithError(err).Error("failed to insert status")
 		return nil, err
-	}
-
-	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
-		status.ID = oid
 	}
 
 	projectLogId := primitive.NewObjectID()
@@ -82,7 +79,7 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 
 func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId primitive.ObjectID, userId primitive.ObjectID) error {
 	ps := GetProjectService()
-	collection := database.DB.Collection(s.Collection)
+	statusRepo := repository.NewStatusRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -94,13 +91,13 @@ func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId prim
 		return fmt.Errorf("user is not part of the project")
 	}
 
-	res, err := collection.DeleteOne(ctx, bson.M{"_id": deleteId})
+	deletedCount, err := statusRepo.DeleteByID(ctx, deleteId)
 	if err != nil {
 		log.WithError(err).Error("failed to delete status")
 		return err
 	}
 
-	if res.DeletedCount == 0 {
+	if deletedCount == 0 {
 		return fmt.Errorf("status not found")
 	}
 
@@ -108,26 +105,12 @@ func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId prim
 }
 
 func (s *StatusService) GetStatusesByProjectId(projectID primitive.ObjectID) ([]*models.Status, error) {
-	collection := database.DB.Collection(s.Collection)
+	statusRepo := repository.NewStatusRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{"project_id": projectID})
+	statuses, err := statusRepo.FindByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var statuses []*models.Status
-	for cursor.Next(ctx) {
-		var status models.Status
-		if err := cursor.Decode(&status); err != nil {
-			return nil, err
-		}
-		statuses = append(statuses, &status)
-	}
-
-	if err := cursor.Err(); err != nil {
 		return nil, err
 	}
 

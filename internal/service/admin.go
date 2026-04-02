@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"managify/database"
+	"managify/internal/repository"
 	"managify/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func init() {
@@ -24,27 +22,12 @@ func init() {
 
 func (s *UserService) GetAllUsers() ([]models.User, error) {
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	opts := options.Find().SetLimit(100).SetProjection(bson.M{"password": 0})
-
-	cursor, err := collection.Find(ctx, bson.M{}, opts)
+	users, err := s.userRepo.FindAllUsers(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find users")
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var users []models.User
-	if err := cursor.All(ctx, &users); err != nil {
-		log.WithError(err).Error("Failed to decode users from cursor")
-		return nil, err
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithError(err).Error("Cursor error after fetching users")
 		return nil, err
 	}
 
@@ -60,72 +43,54 @@ func (s *UserService) GetUserById(id string) (*models.User, error) {
 		return nil, fmt.Errorf("invalid id: %v", err)
 	}
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	optsFilter := bson.M{"password": 0}
-	opts := options.FindOne().SetProjection(optsFilter)
-
-	var user models.User
-	filter := bson.M{"_id": objID}
-	err = collection.FindOne(ctx, filter, opts).Decode(&user)
+	user, err := s.userRepo.FindByID(ctx, objID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("user not found")
-		}
 		return nil, err
 	}
+	if user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
 
-	return &user, nil
+	user.Password = "" // clear it implicitly as previously we used projection
+
+	return user, nil
 }
 
-func (s *UserService) DeleteUserById(id string) (*mongo.DeleteResult, error) {
+func (s *UserService) DeleteUserById(id string) (int64, error) {
 
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ObjectID format: %v", err)
+		return 0, fmt.Errorf("invalid ObjectID format: %v", err)
 	}
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	filter := bson.M{"_id": objID}
-	res, err := collection.DeleteOne(ctx, filter)
+	deletedCount, err := s.userRepo.DeleteByID(ctx, objID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete user: %v", err)
+		return 0, fmt.Errorf("failed to delete user: %v", err)
 	}
 
-	if res.DeletedCount == 0 {
-		return res, fmt.Errorf("user not found")
+	if deletedCount == 0 {
+		return 0, fmt.Errorf("user not found")
 	}
 
-	return res, nil
+	return deletedCount, nil
 }
 
 func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
 	log.Debug("GetAllProjects called")
 
-	collection := database.DB.Collection(s.Collection)
+	projectRepo := repository.NewProjectRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{})
+	projects, err := projectRepo.FindAll(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find projects")
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var projects []models.Project
-	if err := cursor.All(ctx, &projects); err != nil {
-		log.WithError(err).Error("Failed to decode projects from cursor")
-		return nil, err
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithError(err).Error("Cursor error after fetching projects")
 		return nil, err
 	}
 
@@ -134,24 +99,13 @@ func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
 
 func (s *RoleService) GetAllRoles() ([]models.Role, error) {
 
-	collection := database.DB.Collection(s.Collection)
+	roleRepo := repository.NewRoleRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{})
+	roles, err := roleRepo.FindAll(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find roles")
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var roles []models.Role
-	if err := cursor.All(ctx, &roles); err != nil {
-		log.WithError(err).Error("Failed to decode projects from cursor")
-		return nil, err
-	}
-	if err := cursor.Err(); err != nil {
-		log.WithError(err).Error("Cursor error after fetching projects")
 		return nil, err
 	}
 

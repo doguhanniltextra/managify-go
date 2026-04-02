@@ -2,15 +2,13 @@ package service
 
 import (
 	"context"
-
 	"managify/database"
+	"managify/internal/repository"
 	"managify/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type LogService struct {
@@ -35,13 +33,13 @@ func GetLogService() *LogService {
 }
 
 func (s *LogService) CreateLog(projectLog *models.ProjectLog) error {
-	collection := database.DB.Collection(s.Collection)
+	logRepo := repository.NewLogRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	projectLog.ID = primitive.NewObjectID()
 
-	_, err := collection.InsertOne(ctx, projectLog)
+	err := logRepo.InsertOne(ctx, projectLog)
 	if err != nil {
 		log.Errorf("Failed to insert log")
 		return err
@@ -51,53 +49,26 @@ func (s *LogService) CreateLog(projectLog *models.ProjectLog) error {
 }
 
 func (s *LogService) GetLogsByProjectID(projectID string) ([]models.ProjectLog, error) {
-	dbCollection := database.DB.Collection(s.Collection)
-
+	logRepo := repository.NewLogRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	filter := bson.M{"project_id": projectID}
-
-	cursor, err := dbCollection.Find(ctx, filter)
+	logs, err := logRepo.FindByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var logs []models.ProjectLog
-	for cursor.Next(ctx) {
-		var logEntry models.ProjectLog
-		if err := cursor.Decode(&logEntry); err != nil {
-			continue
-		}
-		logs = append(logs, logEntry)
 	}
 
 	return logs, nil
 }
 
 func (s *LogService) GetLogsByUserId(userID string) ([]models.ProjectLog, error) {
-
-	dbCollection := database.DB.Collection(s.Collection)
-	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}}).SetLimit(5)
+	logRepo := repository.NewLogRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	filter := bson.M{"user_id": userID}
-
-	cursor, err := dbCollection.Find(ctx, filter, opts)
+	logs, err := logRepo.GetRecentUserLogs(ctx, userID, 5)
 	if err != nil {
 		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var logs []models.ProjectLog
-	for cursor.Next(ctx) {
-		var logEntry models.ProjectLog
-		if err := cursor.Decode(&logEntry); err != nil {
-			continue
-		}
-		logs = append(logs, logEntry)
 	}
 
 	return logs, nil

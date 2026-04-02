@@ -3,19 +3,16 @@ package validation
 import (
 	"context"
 	"managify/database"
-	"managify/internal/service"
+	"managify/internal/repository"
 	"managify/models"
 	"regexp"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
-
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func CreateRegisterValidator(c *fiber.Ctx) error {
-	us := service.GetUserService()
 	log := logrus.New()
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
@@ -61,32 +58,32 @@ func CreateRegisterValidator(c *fiber.Ctx) error {
 	}
 
 	// DB uniqueness checks
-	collection := database.DB.Collection(us.Collection)
+	userRepo := repository.NewUserRepository(database.DB)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	emailCount, err := collection.CountDocuments(ctx, bson.M{"email": user.Email})
+	existingUserByEmail, err := userRepo.FindByEmail(ctx, user.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
-			"error":   err,
+			"error":   err.Error(),
 		})
 	}
-	if emailCount > 0 {
+	if existingUserByEmail != nil {
 		log.Warnf("Email already exists: %s", user.Email)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Email already exists",
 		})
 	}
 
-	fullNameCount, err := collection.CountDocuments(ctx, bson.M{"full_name": user.FullName})
+	existingUserByFullName, err := userRepo.FindByFullName(ctx, user.FullName)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
-			"error":   err,
+			"error":   err.Error(),
 		})
 	}
-	if fullNameCount > 0 {
+	if existingUserByFullName != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Name already exists",
 		})

@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"managify/database"
+	"managify/internal/repository"
 
 	"managify/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type IssueService struct {
@@ -38,7 +36,6 @@ func GetIssueService() *IssueService {
 
 func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectID) (*models.Issue, error) {
 
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -62,7 +59,9 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 
 	issue.ID = primitive.NewObjectID()
 
-	if _, err := collection.InsertOne(ctx, issue); err != nil {
+	issueRepo := repository.NewIssueRepository(database.DB)
+
+	if err := issueRepo.InsertOne(ctx, issue); err != nil {
 		log.Errorf("Failed to insert issue into DB: %v", err)
 		return nil, err
 	}
@@ -82,20 +81,20 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 	return issue, nil
 }
 func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var issue models.Issue
-	err := collection.FindOne(ctx, bson.M{"_id": issueID}).Decode(&issue)
+	issueRepo := repository.NewIssueRepository(database.DB)
+
+	issue, err := issueRepo.FindByID(ctx, issueID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return fmt.Errorf("issue not found")
-		}
 		return err
 	}
+	if issue == nil {
+		return fmt.Errorf("issue not found")
+	}
 
-	isUserInProject, err := projectService.IsUserInProject(userID, issue.ProjectID)
+	isUserInProject, err := GetProjectService().IsUserInProject(userID, issue.ProjectID)
 	if err != nil {
 		return err
 	}
@@ -103,7 +102,7 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 		return fmt.Errorf("user is not allowed to delete this issue")
 	}
 
-	_, err = collection.DeleteOne(ctx, bson.M{"_id": issueID})
+	_, err = issueRepo.DeleteByID(ctx, issueID)
 	if err != nil {
 		log.Errorf("Failed to delete issue from DB: %v", err)
 		return err
@@ -111,51 +110,36 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 	return nil
 }
 func (s *IssueService) GetIssuesByStatusID(statusID primitive.ObjectID) ([]*models.Issue, error) {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{"status_id": statusID})
+	issueRepo := repository.NewIssueRepository(database.DB)
+
+	issues, err := issueRepo.FindByStatusID(ctx, statusID)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
-
-	var issues []*models.Issue
-	for cursor.Next(ctx) {
-		var issue models.Issue
-		if err := cursor.Decode(&issue); err != nil {
-			return nil, err
-		}
-		issues = append(issues, &issue)
-	}
-
 	return issues, nil
 }
 func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.ObjectID) (*models.Issue, error) {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var issue models.Issue
-	if err := collection.FindOne(ctx, bson.M{"_id": issueID}).Decode(&issue); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("issue not found")
-		}
+	issueRepo := repository.NewIssueRepository(database.DB)
+
+	issue, err := issueRepo.FindByID(ctx, issueID)
+	if err != nil {
 		return nil, err
 	}
-
-	update := bson.M{
-		"$set": bson.M{
-			"status_id":  newStatusID,
-			"updated_at": time.Now(),
-		},
+	if issue == nil {
+		return nil, fmt.Errorf("issue not found")
 	}
-	res, err := collection.UpdateOne(ctx, bson.M{"_id": issueID}, update)
+
+	modifiedCount, err := issueRepo.UpdateStatus(ctx, issueID, newStatusID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update issue status: %w", err)
 	}
-	if res.MatchedCount == 0 {
+	if modifiedCount == 0 {
 		return nil, fmt.Errorf("no matching issue found to update")
 	}
 
@@ -172,46 +156,20 @@ func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.
 
 	issue.StatusID = newStatusID
 
-	return &issue, nil
+	return issue, nil
 }
 
 func (s *IssueService) GetOncomingIssues(projectID primitive.ObjectID) ([]*models.Issue, error) {
-	collection := database.DB.Collection(s.Collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	issueRepo := repository.NewIssueRepository(database.DB)
 	currentTime := time.Now()
 	threeDaysLater := currentTime.Add(72 * time.Hour)
-	format := "2006-01-02"
 
-	filter := bson.M{
-		"project_id": projectID,
-		"due_date": bson.M{
-			"$gte": currentTime.Format(format),
-			"$lte": threeDaysLater.Format(format),
-		},
-	}
-
-	projection := bson.M{
-		"title":       1,
-		"description": 1,
-		"due_date":    1,
-	}
-	opt := options.Find().SetSort(bson.D{{Key: "due_date", Value: 1}}).SetProjection(projection)
-
-	cursor, err := collection.Find(ctx, filter, opt)
+	issues, err := issueRepo.FindOncomingIssues(ctx, projectID, currentTime, threeDaysLater)
 	if err != nil {
 		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var issues []*models.Issue
-	for cursor.Next(ctx) {
-		var issue models.Issue
-		if err := cursor.Decode(&issue); err != nil {
-			return nil, err
-		}
-		issues = append(issues, &issue)
 	}
 
 	return issues, nil

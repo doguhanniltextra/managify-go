@@ -19,7 +19,7 @@ func Connect() error {
 		return fmt.Errorf("MONGO_URI environment variable not set")
 	}
 
-	clientOptions := options.Client().ApplyURI(uri)
+	clientOptions := options.Client().ApplyURI(uri).SetMaxPoolSize(200).SetMinPoolSize(10)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
