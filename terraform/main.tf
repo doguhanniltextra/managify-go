@@ -77,7 +77,12 @@ module "ecs" {
 
     # Features
     { name = "SWAGGER", value = var.swagger_enabled },
-    { name = "METRICS", value = var.metrics_enabled }
+    { name = "METRICS", value = var.metrics_enabled },
+    
+    # Google OAuth
+    { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
+    { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
+    { name = "GOOGLE_REDIRECT_URI", value = var.google_redirect_uri }
   ]
 }
 

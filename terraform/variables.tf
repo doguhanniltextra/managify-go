@@ -130,3 +130,19 @@ variable "app_port" {
   type        = string
   default     = "8080"
 }
+
+variable "google_client_id" {
+  description = "Google OAuth Client ID"
+  type        = string
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth Client Secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_redirect_uri" {
+  description = "Google OAuth Redirect URI"
+  type        = string
+}

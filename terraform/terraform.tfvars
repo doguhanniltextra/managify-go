@@ -1,9 +1,6 @@
 project_name = "managify"
 aws_region   = "eu-central-1"
 
-db_master_username = "admin"
-db_master_password = "ChangeMe123!"
-
 # App Secrets
 secret_key    = "your-secret-key-here"
 smtp_password = "your-smtp-password"

@@ -1,6 +1,7 @@
 import { HashRouter, BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./components/login/Login";
+import GoogleCallback from "./components/login/GoogleCallback";
 import Register from "./components/register/Register";
 import Dashboard from "./components/dashboard/Dashboard";
 import ManagifyLandingPage from "./components/main/home";
@@ -64,6 +65,14 @@ export default function App() {
               element={
                 <PublicRoute>
                   <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/auth/google/callback"
+              element={
+                <PublicRoute>
+                  <GoogleCallback />
                 </PublicRoute>
               }
             />

@@ -1,10 +1,18 @@
 project_name = "managify-dev"
 aws_region   = "eu-central-1"
 
-mongo_uri = "mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority"
+# Database Configuration
+mongo_uri     = "mongodb+srv://<user>:<password>@cluster.mongodb.net/?retryWrites=true&w=majority"
+
+# Security
+secret_key    = "your-secret-key-here"
+
+# Google OAuth
+google_client_id     = "your-google-client-id"
+google_client_secret = "your-google-client-secret"
+google_redirect_uri  = "http://your-alb-dns/auth/google/callback"
 
 # App Secrets
-secret_key    = "your-secret-key-here"
 smtp_password = "your-smtp-password"
 
 # App Config

@@ -13,6 +13,7 @@ import (
 )
 
 func Routers(app *fiber.App) {
+	RouterGoogleAuth(app)
 	RouterUser(app)
 	RouterAdmin(app)
 	RouterProject(app)
@@ -112,4 +113,11 @@ func RouterMetrics(app *fiber.App) {
 	if os.Getenv("METRICS") == "true" {
 		api.Get("/", handler.MetricsHandler)
 	}
+}
+
+func RouterGoogleAuth(app *fiber.App) {
+	api := app.Group(routes.GoogleAuthBase)
+
+	api.Get(routes.GoogleAuthURL, handler.GoogleAuthURLHandler)
+	api.Post(routes.GoogleAuthCallback, handler.GoogleCallbackHandler)
 }

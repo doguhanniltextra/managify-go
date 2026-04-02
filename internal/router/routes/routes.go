@@ -3,6 +3,11 @@ package routes
 const (
 	version = "/v1"
 
+	// Google OAuth endpoints
+	GoogleAuthBase     = version + "/auth"
+	GoogleAuthURL      = "/google"
+	GoogleAuthCallback = "/google/callback"
+
 	// User endpoints
 	UserBase     = version + "/users"
 	UserRegister = "/register"
