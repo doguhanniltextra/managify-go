@@ -35,7 +35,7 @@ type mongoUserRepository struct {
 	*BaseRepository[models.User]
 }
 
-// NewUserRepository, MongoDB tabanlı User repo instance'ı döner.
+
 func NewUserRepository(db *mongo.Database) UserRepository {
 	return &mongoUserRepository{
 		BaseRepository: NewBaseRepository[models.User](db, "users"),

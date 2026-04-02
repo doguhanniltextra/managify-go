@@ -54,6 +54,9 @@ jobs:
           metrics_enabled    = "${{ vars.METRICS_ENABLED || 'true' }}"
           app_port           = "${{ vars.APP_PORT || '8080' }}"
           container_image    = "nginx:latest"
+          google_client_id   = "${{ vars.GOOGLE_CLIENT_ID }}"
+          google_client_secret = "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          google_redirect_uri = "${{ vars.GOOGLE_REDIRECT_URI }}"
           EOF
 
       - name: Deploy ECR Repository
