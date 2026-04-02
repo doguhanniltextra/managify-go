@@ -14,7 +14,8 @@ import (
 )
 
 type RoleService struct {
-	Collection string
+	roleRepo  repository.RoleRepository
+	createLog func(*models.ProjectLog) error
 }
 
 var roleService *RoleService
@@ -29,7 +30,10 @@ func init() {
 
 func GetRoleService() *RoleService {
 	if roleService == nil {
-		roleService = &RoleService{Collection: "roles"}
+		roleService = &RoleService{
+			roleRepo:  repository.NewRoleRepository(database.DB),
+			createLog: GetLogService().CreateLog,
+		}
 	}
 	return roleService
 }
@@ -58,7 +62,7 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 		return nil, fmt.Errorf("user is not part of the project")
 	}
 
-	roleRepo := repository.NewRoleRepository(database.DB)
+	roleRepo := s.roleRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -76,14 +80,14 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 		Message:   "Role Has Been Assigned -> " + roleName,
 		Timestamp: time.Now(),
 	}
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 	return role, nil
 }
 
 func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
-	roleRepo := repository.NewRoleRepository(database.DB)
+	roleRepo := s.roleRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -101,7 +105,7 @@ func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
 }
 
 func (s *ProjectService) IsOwner(ownerId, projectId primitive.ObjectID) (bool, error) {
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

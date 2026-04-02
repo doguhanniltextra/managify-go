@@ -13,7 +13,10 @@ import (
 )
 
 type StatusService struct {
-	Collection string
+	statusRepo      repository.StatusRepository
+	createLog       func(*models.ProjectLog) error
+	isProjectValid  func(primitive.ObjectID) (bool, error)
+	isUserInProject func(primitive.ObjectID, primitive.ObjectID) (bool, error)
 }
 
 var statusService *StatusService
@@ -28,20 +31,23 @@ func init() {
 
 func GetStatusService() *StatusService {
 	if statusService == nil {
-		statusService = &StatusService{Collection: "status"}
+		statusService = &StatusService{
+			statusRepo:      repository.NewStatusRepository(database.DB),
+			createLog:       GetLogService().CreateLog,
+			isProjectValid:  GetProjectService().IsProjectValid,
+			isUserInProject: GetProjectService().IsUserInProject,
+		}
 	}
 	return statusService
 }
 
 func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, error) {
-	ps := GetProjectService()
-
-	projectValid, err := ps.IsProjectValid(status.ProjectID)
+	projectValid, err := s.isProjectValid(status.ProjectID)
 	if err != nil || !projectValid {
 		return nil, err
 	}
 
-	exists, err := ps.IsUserInProject(status.CreatorID, status.ProjectID)
+	exists, err := s.isUserInProject(status.CreatorID, status.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +55,7 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 		return nil, fmt.Errorf("user is not part of the project")
 	}
 
-	statusRepo := repository.NewStatusRepository(database.DB)
+	statusRepo := s.statusRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -67,23 +73,22 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 	projectLog := models.ProjectLog{
 		ID:        projectLogId,
 		ProjectID: status.ProjectID.Hex(),
-		UserID:    status.ID.Hex(),
+		UserID:    status.ID.Hex(), // Is it intentional that user ID is status.ID? Left as is based on original
 		Message:   "Status has been added -> " + status.Name,
 		Timestamp: time.Now(),
 	}
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 	return status, nil
 }
 
 func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId primitive.ObjectID, userId primitive.ObjectID) error {
-	ps := GetProjectService()
-	statusRepo := repository.NewStatusRepository(database.DB)
+	statusRepo := s.statusRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	exists, err := ps.IsUserInProject(userId, projectId)
+	exists, err := s.isUserInProject(userId, projectId)
 	if err != nil {
 		return err
 	}
@@ -105,7 +110,7 @@ func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId prim
 }
 
 func (s *StatusService) GetStatusesByProjectId(projectID primitive.ObjectID) ([]*models.Status, error) {
-	statusRepo := repository.NewStatusRepository(database.DB)
+	statusRepo := s.statusRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

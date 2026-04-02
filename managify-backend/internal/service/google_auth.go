@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"managify/database"
-	"managify/internal/dto"
+	"managify/dto/response"
 	"managify/internal/middleware"
 	"managify/internal/repository"
 	"managify/models"
@@ -78,7 +78,7 @@ func (s *GoogleAuthService) HandleCallback(code string) (*models.User, string, e
 	return user, token, nil
 }
 
-func (s *GoogleAuthService) exchangeCodeForToken(code string) (*dto.GoogleTokenResponse, error) {
+func (s *GoogleAuthService) exchangeCodeForToken(code string) (*response.GoogleTokenResponse, error) {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 	redirectURI := os.Getenv("GOOGLE_REDIRECT_URI")
@@ -106,7 +106,7 @@ func (s *GoogleAuthService) exchangeCodeForToken(code string) (*dto.GoogleTokenR
 		return nil, fmt.Errorf("google returned status %d", resp.StatusCode)
 	}
 
-	var tokenResp dto.GoogleTokenResponse
+	var tokenResp response.GoogleTokenResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to parse token response: %w", err)
 	}
@@ -115,7 +115,7 @@ func (s *GoogleAuthService) exchangeCodeForToken(code string) (*dto.GoogleTokenR
 }
 
 // GET https://www.googleapis.com/oauth2/v3/userinfo
-func (s *GoogleAuthService) getUserInfo(accessToken string) (*dto.GoogleUserInfo, error) {
+func (s *GoogleAuthService) getUserInfo(accessToken string) (*response.GoogleUserInfo, error) {
 	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create userinfo request: %w", err)
@@ -139,7 +139,7 @@ func (s *GoogleAuthService) getUserInfo(accessToken string) (*dto.GoogleUserInfo
 		return nil, fmt.Errorf("userinfo returned status %d", resp.StatusCode)
 	}
 
-	var userInfo dto.GoogleUserInfo
+	var userInfo response.GoogleUserInfo
 	if err := json.Unmarshal(body, &userInfo); err != nil {
 		return nil, fmt.Errorf("failed to parse userinfo response: %w", err)
 	}
@@ -147,7 +147,7 @@ func (s *GoogleAuthService) getUserInfo(accessToken string) (*dto.GoogleUserInfo
 	return &userInfo, nil
 }
 
-func (s *GoogleAuthService) findOrCreateGoogleUser(info *dto.GoogleUserInfo) (*models.User, error) {
+func (s *GoogleAuthService) findOrCreateGoogleUser(info *response.GoogleUserInfo) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

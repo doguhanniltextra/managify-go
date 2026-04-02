@@ -14,7 +14,10 @@ import (
 )
 
 type IssueService struct {
-	Collection string
+	issueRepo       repository.IssueRepository
+	createLog       func(*models.ProjectLog) error
+	isProjectValid  func(primitive.ObjectID) (bool, error)
+	isUserInProject func(primitive.ObjectID, primitive.ObjectID) (bool, error)
 }
 
 var issueService *IssueService
@@ -29,7 +32,12 @@ func init() {
 
 func GetIssueService() *IssueService {
 	if issueService == nil {
-		issueService = &IssueService{Collection: "issues"}
+		issueService = &IssueService{
+			issueRepo:       repository.NewIssueRepository(database.DB),
+			createLog:       GetLogService().CreateLog,
+			isProjectValid:  GetProjectService().IsProjectValid,
+			isUserInProject: GetProjectService().IsUserInProject,
+		}
 	}
 	return issueService
 }
@@ -40,7 +48,7 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 	defer cancel()
 
 	// Project validation
-	isProjectValid, err := GetProjectService().IsProjectValid(issue.ProjectID)
+	isProjectValid, err := s.isProjectValid(issue.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +57,7 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 	}
 
 	// User validation
-	isUserInProject, err := GetProjectService().IsUserInProject(userID, issue.ProjectID)
+	isUserInProject, err := s.isUserInProject(userID, issue.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +67,7 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 
 	issue.ID = primitive.NewObjectID()
 
-	issueRepo := repository.NewIssueRepository(database.DB)
+	issueRepo := s.issueRepo
 
 	if err := issueRepo.InsertOne(ctx, issue); err != nil {
 		log.Errorf("Failed to insert issue into DB: %v", err)
@@ -74,7 +82,7 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 		Message:   "Issue Has Been Created -> " + issue.Title,
 		Timestamp: time.Now(),
 	}
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 
@@ -84,7 +92,7 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	issueRepo := repository.NewIssueRepository(database.DB)
+	issueRepo := s.issueRepo
 
 	issue, err := issueRepo.FindByID(ctx, issueID)
 	if err != nil {
@@ -94,7 +102,7 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 		return fmt.Errorf("issue not found")
 	}
 
-	isUserInProject, err := GetProjectService().IsUserInProject(userID, issue.ProjectID)
+	isUserInProject, err := s.isUserInProject(userID, issue.ProjectID)
 	if err != nil {
 		return err
 	}
@@ -113,7 +121,7 @@ func (s *IssueService) GetIssuesByStatusID(statusID primitive.ObjectID) ([]*mode
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	issueRepo := repository.NewIssueRepository(database.DB)
+	issueRepo := s.issueRepo
 
 	issues, err := issueRepo.FindByStatusID(ctx, statusID)
 	if err != nil {
@@ -125,7 +133,7 @@ func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	issueRepo := repository.NewIssueRepository(database.DB)
+	issueRepo := s.issueRepo
 
 	issue, err := issueRepo.FindByID(ctx, issueID)
 	if err != nil {
@@ -150,7 +158,7 @@ func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.
 		Message:   fmt.Sprintf("Issue '%s' status changed to new status", issue.Title),
 		Timestamp: time.Now(),
 	}
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 
@@ -163,7 +171,7 @@ func (s *IssueService) GetOncomingIssues(projectID primitive.ObjectID) ([]*model
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	issueRepo := repository.NewIssueRepository(database.DB)
+	issueRepo := s.issueRepo
 	currentTime := time.Now()
 	threeDaysLater := currentTime.Add(72 * time.Hour)
 

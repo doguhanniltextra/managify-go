@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"managify/database"
-	"managify/internal/repository"
 	"managify/models"
 	"time"
 
@@ -84,7 +82,7 @@ func (s *UserService) DeleteUserById(id string) (int64, error) {
 func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
 	log.Debug("GetAllProjects called")
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -99,7 +97,7 @@ func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
 
 func (s *RoleService) GetAllRoles() ([]models.Role, error) {
 
-	roleRepo := repository.NewRoleRepository(database.DB)
+	roleRepo := s.roleRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

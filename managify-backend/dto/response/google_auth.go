@@ -1,4 +1,4 @@
-package dto
+package response
 
 type GoogleTokenResponse struct {
 	AccessToken  string `json:"access_token"`

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
-	"managify/internal/repository"
 	"managify/database"
+	"managify/internal/repository"
 
 	"managify/models"
 	"time"
@@ -14,7 +14,10 @@ import (
 )
 
 type ProjectService struct {
-	Collection string
+	projectRepo repository.ProjectRepository
+	userRepo    repository.UserRepository
+	subRepo     repository.SubscriptionRepository
+	createLog   func(*models.ProjectLog) error
 }
 
 var projectService *ProjectService
@@ -29,7 +32,12 @@ func init() {
 
 func GetProjectService() *ProjectService {
 	if projectService == nil {
-		projectService = &ProjectService{Collection: "projects"}
+		projectService = &ProjectService{
+			projectRepo: repository.NewProjectRepository(database.DB),
+			userRepo:    repository.NewUserRepository(database.DB),
+			subRepo:     repository.NewSubscriptionRepository(database.DB),
+			createLog:   GetLogService().CreateLog,
+		}
 	}
 	return projectService
 }
@@ -38,9 +46,9 @@ func (s *ProjectService) CreateProject(project *models.Project, user *models.Use
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	userRepo := repository.NewUserRepository(database.DB)
-	projectRepo := repository.NewProjectRepository(database.DB)
-	subRepo := repository.NewSubscriptionRepository(database.DB)
+	userRepo := s.userRepo
+	projectRepo := s.projectRepo
+	subRepo := s.subRepo
 
 	subscription, err := subRepo.FindByUserID(ctx, user.ID)
 	if err != nil {
@@ -74,20 +82,20 @@ func (s *ProjectService) CreateProject(project *models.Project, user *models.Use
 		Message:   "Project has been created",
 		Timestamp: time.Now(),
 	}
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 
 	return project, nil
 }
 
-func reduceProjectSize(ownerID primitive.ObjectID) error {
+func (s *ProjectService) reduceProjectSize(ownerID primitive.ObjectID) error {
 	log.Debugf("reduceProjectSize called for ownerID=%s", ownerID.Hex())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	userRepo := repository.NewUserRepository(database.DB)
+	userRepo := s.userRepo
 	err := userRepo.IncrementProjectSize(ctx, ownerID, -1)
 	if err != nil {
 		log.WithError(err).Error("Failed to update project_size")
@@ -103,7 +111,7 @@ func (s *ProjectService) DeleteProjectById(objID primitive.ObjectID, user *model
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 
 	project, err := projectRepo.FindOneWithAccess(ctx, objID, user.ID)
 	if err != nil {
@@ -128,7 +136,7 @@ func (s *ProjectService) DeleteProjectById(objID primitive.ObjectID, user *model
 	}
 
 	if project != nil {
-		reduceProjectSize(project.OwnerID)
+		s.reduceProjectSize(project.OwnerID)
 	}
 
 	log.Infof("Project deleted successfully: %s, deletedCount=%d", objID.Hex(), deletedCount)
@@ -137,7 +145,7 @@ func (s *ProjectService) DeleteProjectById(objID primitive.ObjectID, user *model
 
 func (s *ProjectService) GetProject(projectID primitive.ObjectID, user *models.User) (*models.Project, error) {
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -159,7 +167,7 @@ func (s *ProjectService) IsProjectValid(projectID primitive.ObjectID) (bool, err
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	valid, err := projectRepo.VerifyProject(ctx, projectID)
 	if err != nil {
 		log.WithError(err).Error("failed to fetch project")
@@ -173,7 +181,7 @@ func (s *ProjectService) IsUserInProject(userID, projectID primitive.ObjectID) (
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	inProject, err := projectRepo.CheckUserInProject(ctx, projectID, userID)
 	if err != nil {
 		log.WithError(err).Error("failed to check if user is in project")
@@ -192,7 +200,7 @@ func (s *ProjectService) GetProjectsByUserId(userIDHex string) ([]*models.Projec
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	projects, err := projectRepo.FindAllByUserID(ctx, userObjID)
 	if err != nil {
 		return nil, fmt.Errorf("decode projects failed: %w", err)
@@ -202,7 +210,7 @@ func (s *ProjectService) GetProjectsByUserId(userIDHex string) ([]*models.Projec
 }
 
 func (s *ProjectService) GetProjectWithTeam(projectID primitive.ObjectID, user *models.User) (*models.Project, []models.User, error) {
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -216,7 +224,7 @@ func (s *ProjectService) GetProjectWithTeam(projectID primitive.ObjectID, user *
 
 	var teamMembers []models.User
 	if len(project.TeamIDs) > 0 {
-		userRepo := repository.NewUserRepository(database.DB)
+		userRepo := s.userRepo
 		members, err := userRepo.FindUsersByIDs(ctx, project.TeamIDs)
 		if err == nil {
 			teamMembers = members
@@ -227,7 +235,7 @@ func (s *ProjectService) GetProjectWithTeam(projectID primitive.ObjectID, user *
 }
 
 func (s *ProjectService) DeleteMemberFromProjectById(userId, memberId primitive.ObjectID) error {
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

@@ -23,10 +23,31 @@ func init() {
 	log.SetLevel(logrus.DebugLevel)
 }
 
-func CreateProjectInvite(senderID primitive.ObjectID, req request.ProjectInviteRequest) (*models.ProjectInvite, error) {
-	inviteRepo := repository.NewProjectInviteRepository(database.DB)
-	userRepo := repository.NewUserRepository(database.DB)
-	projectRepo := repository.NewProjectRepository(database.DB)
+type InviteService struct {
+	inviteRepo  repository.ProjectInviteRepository
+	userRepo    repository.UserRepository
+	projectRepo repository.ProjectRepository
+	createLog   func(*models.ProjectLog) error
+}
+
+var inviteService *InviteService
+
+func GetInviteService() *InviteService {
+	if inviteService == nil {
+		inviteService = &InviteService{
+			inviteRepo:  repository.NewProjectInviteRepository(database.DB),
+			userRepo:    repository.NewUserRepository(database.DB),
+			projectRepo: repository.NewProjectRepository(database.DB),
+			createLog:   GetLogService().CreateLog,
+		}
+	}
+	return inviteService
+}
+
+func (s *InviteService) CreateProjectInvite(senderID primitive.ObjectID, req request.ProjectInviteRequest) (*models.ProjectInvite, error) {
+	inviteRepo := s.inviteRepo
+	userRepo := s.userRepo
+	projectRepo := s.projectRepo
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -74,7 +95,7 @@ func CreateProjectInvite(senderID primitive.ObjectID, req request.ProjectInviteR
 		Timestamp: time.Now(),
 	}
 
-	if err := GetLogService().CreateLog(&projectLog); err != nil {
+	if err := s.createLog(&projectLog); err != nil {
 		return nil, err
 	}
 
@@ -90,10 +111,10 @@ type ProjectInviteFull struct {
 	Receiver  models.User        `json:"receiver"`
 }
 
-func GetProjectInvites(receiverID primitive.ObjectID) ([]*ProjectInviteFull, error) {
-	inviteRepo := repository.NewProjectInviteRepository(database.DB)
-	userRepo := repository.NewUserRepository(database.DB)
-	projectRepo := repository.NewProjectRepository(database.DB)
+func (s *InviteService) GetProjectInvites(receiverID primitive.ObjectID) ([]*ProjectInviteFull, error) {
+	inviteRepo := s.inviteRepo
+	userRepo := s.userRepo
+	projectRepo := s.projectRepo
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -134,10 +155,10 @@ func GetProjectInvites(receiverID primitive.ObjectID) ([]*ProjectInviteFull, err
 	return result, nil
 }
 
-func RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*models.ProjectInvite, error) {
+func (s *InviteService) RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*models.ProjectInvite, error) {
 	log.Debugf("RespondProjectInvite called with userID=%s, inviteID=%s, accept=%v", userID.Hex(), inviteID.Hex(), accept)
 
-	inviteRepo := repository.NewProjectInviteRepository(database.DB)
+	inviteRepo := s.inviteRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -155,7 +176,7 @@ func RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*mo
 	log.Infof("Invite updated successfully: %+v", *invite)
 
 	if accept {
-		if err := addUserToProject(invite.ProjectID, userID); err != nil {
+		if err := s.addUserToProject(invite.ProjectID, userID); err != nil {
 			log.WithError(err).Errorf("Failed to add user to project: projectID=%s, userID=%s", invite.ProjectID.Hex(), userID.Hex())
 			return nil, fmt.Errorf("failed to add user to project: %v", err)
 		}
@@ -167,7 +188,7 @@ func RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*mo
 			Message:   "Invite has been accepted",
 			Timestamp: time.Now(),
 		}
-		if err := GetLogService().CreateLog(&projectLog); err != nil {
+		if err := s.createLog(&projectLog); err != nil {
 			return nil, err
 		}
 		log.Infof("User %s added to project %s team", userID.Hex(), invite.ProjectID.Hex())
@@ -176,9 +197,9 @@ func RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*mo
 	return invite, nil
 }
 
-func addUserToProject(projectID, userID primitive.ObjectID) error {
+func (s *InviteService) addUserToProject(projectID, userID primitive.ObjectID) error {
 	log.Debugf("addUserToProject called with projectID=%s, userID=%s", projectID.Hex(), userID.Hex())
-	projectRepo := repository.NewProjectRepository(database.DB)
+	projectRepo := s.projectRepo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
