@@ -12,12 +12,6 @@ This repository contains the complete source code for the backend API, frontend 
 - **Secure Authentication**: JWT-based stateless authentication with secure password hashing.
 - **Real-time Performance**: Optimized Go backend handling concurrent requests with minimal latency.
 
-### Technical Excellence
-- **Clean Architecture**: Strictly layered codebase (Handler -> Service -> Repository) ensuring maintainability and testability.
-- **RESTful API**: Standardized API design with comprehensive **Swagger/OpenAPI** documentation.
-- **Containerization**: Fully Dockerized application with multi-stage builds for optimized image sizes.
-- **Infrastructure as Code (IaC)**: Complete **Terraform** configuration for deploying to **AWS ECS Fargate** with VPC, ALB, and ECR.
-- **Database**: MongoDB integration with advanced aggregation pipelines for complex data reporting.
 
 ## Technology Stack
 
