@@ -43,7 +43,7 @@ func CreateRegisterValidator(c *fiber.Ctx) error {
 		})
 	}
 
-	if CheckPasswordComplexity(user.Password) {
+	if !CheckPasswordComplexity(user.Password) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Password must contain at least 1 number, 1 uppercase letter, and 1 special character",
 		})
