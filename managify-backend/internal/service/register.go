@@ -9,10 +9,10 @@ import (
 	"managify/dto/request"
 	"managify/dto/response"
 
+	"managify/internal/config"
 	"managify/internal/middleware"
+	"managify/internal/notification"
 	"managify/internal/repository"
-	"net/smtp"
-	"os"
 	"time"
 
 	"managify/models"
@@ -24,6 +24,7 @@ import (
 
 type UserService struct {
 	userRepo        repository.UserRepository
+	notifier        notification.Provider
 	EncryptPassword func([]byte) ([]byte, error)
 	CreateToken     func(*models.User) (string, error)
 }
@@ -40,8 +41,10 @@ func init() {
 
 func GetUserService() *UserService {
 	if userService == nil {
+		cfg := config.LoadConfig()
 		userService = &UserService{
 			userRepo:        repository.NewUserRepository(database.DB),
+			notifier:        notification.NewSMTPProvider(cfg),
 			CreateToken:     middleware.CreateToken,
 			EncryptPassword: encryptPassword,
 		}
@@ -58,34 +61,6 @@ func generateToken(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func sendVerificationEmail(email, token string) error {
-
-	from := os.Getenv("SMTP_FROM")
-	pass := os.Getenv("SMTP_PASSWORD")
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := os.Getenv("SMTP_PORT")
-
-	fmt.Println(from, pass, smtpHost, smtpPort)
-
-	to := email
-	msg := "Subject: Email Verification\n" +
-		"MIME-version: 1.0;\n" +
-		"Content-Type: text/html; charset=\"UTF-8\";\n\n" +
-		"<html>" +
-		"<body>" +
-		"<h2>Verify Your Email</h2>" +
-		"<p>Click the button below to verify your account:</p>" +
-		"<a href='http://localhost:5173/verify?token=" + token + "' " +
-		"style='display:inline-block;padding:10px 20px;background-color:#4CAF50;color:white;text-decoration:none;border-radius:5px;'>Verify Email</a>" +
-		"<p>If you did not create an account, you can ignore this email.</p>" +
-		"</body>" +
-		"</html>"
-
-	addr := smtpHost + ":" + smtpPort
-	return smtp.SendMail(addr,
-		smtp.PlainAuth("", from, pass, smtpHost),
-		from, []string{to}, []byte(msg))
-}
 
 func (s *UserService) CreateUser(user *models.User) (*models.User, string, error) {
 
@@ -119,7 +94,7 @@ func (s *UserService) CreateUser(user *models.User) (*models.User, string, error
 		return nil, "", err
 	}
 
-	go sendVerificationEmail(user.Email, user.VerificationToken)
+	go s.notifier.SendVerificationEmail(user.Email, user.VerificationToken)
 
 	user.Password = ""
 
@@ -173,7 +148,7 @@ func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginR
 		Token:    tokenString,
 	}
 	if !user.IsVerified {
-		go sendVerificationEmail(user.Email, user.VerificationToken)
+		go s.notifier.SendVerificationEmail(user.Email, user.VerificationToken)
 	}
 
 	log.Infof("User logged in successfully: %s", req.Email)

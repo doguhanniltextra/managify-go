@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"managify/internal/validation"
+	"managify/database"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
