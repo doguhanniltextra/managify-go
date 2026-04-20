@@ -1,6 +1,6 @@
 # Managify
 
-Managify is an enterprise-grade Project Management Platform engineered for scalability and performance. Built with a cloud-native architecture, it leverages **Golang** for high-throughput backend services and **React** for a responsive frontend experience.
+Managify is a Project Management Platform engineered for scalability and performance. Built with a cloud-native architecture, it leverages **Golang** for high-throughput backend services and **React** for a responsive frontend experience.
 
 This repository contains the complete source code for the backend API, frontend application, and infrastructure definitions.
 
