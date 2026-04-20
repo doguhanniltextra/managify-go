@@ -62,3 +62,19 @@ func (s *SubscriptionService) CreateSubscription(subscription *models.Subscripti
 
 	return subscription, nil
 }
+
+func (s *SubscriptionService) CreateDefaultSubscription(userID primitive.ObjectID) (*models.Subscription, error) {
+	startDate := time.Now().UTC()
+	endDate := startDate.AddDate(0, 1, 0) // Default to 1 month duration
+
+	subscription := &models.Subscription{
+		ID:                    primitive.NewObjectID(),
+		UserID:                userID,
+		SubscriptionStartDate: startDate,
+		SubscriptionEndDate:   endDate,
+		PlanType:              models.PlanBasic,
+		IsValid:               true,
+	}
+
+	return s.CreateSubscription(subscription)
+}

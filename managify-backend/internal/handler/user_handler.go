@@ -6,8 +6,6 @@ import (
 	"managify/internal/service"
 	"managify/models"
 	"sync"
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -40,20 +38,6 @@ func CreateRegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	subscriptionStartDate := time.Now()
-	subscriptionEndDate := time.Now()
-	planType := models.PlanBasic
-	isValid := true
-
-	subscriptionMethod := models.Subscription{
-
-		SubscriptionStartDate: subscriptionStartDate,
-		SubscriptionEndDate:   subscriptionEndDate,
-		PlanType:              planType,
-		IsValid:               isValid,
-		UserID:                user.ID,
-	}
-
 	var (
 		wg              sync.WaitGroup
 		subscription    *models.Subscription
@@ -64,7 +48,7 @@ func CreateRegisterHandler(c *fiber.Ctx) error {
 	go func() {
 		defer wg.Done()
 		var err error
-		subscription, err = service.GetSubscriptionService().CreateSubscription(&subscriptionMethod)
+		subscription, err = service.GetSubscriptionService().CreateDefaultSubscription(user.ID)
 		if err != nil {
 			subscriptionErr = err
 			return
@@ -74,7 +58,10 @@ func CreateRegisterHandler(c *fiber.Ctx) error {
 	wg.Wait()
 
 	if subscriptionErr != nil {
-		return subscriptionErr
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": constant.ErrInternalServer,
+			"error":   subscriptionErr.Error(),
+		})
 	}
 
 	// Return response
