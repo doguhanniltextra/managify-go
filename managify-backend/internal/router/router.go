@@ -25,8 +25,14 @@ func Routers(app *fiber.App) {
 	RouterSwagger(app)
 	RouterMetrics(app)
 
-	// Health check for Load Balancer
+	// Health check for Load Balancer (Deep Health Check)
 	app.Get("/health", func(c *fiber.Ctx) error {
+		if err := database.CheckHealth(); err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"status": "error",
+				"error":  "database connection lost",
+			})
+		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"status": "ok",
 		})

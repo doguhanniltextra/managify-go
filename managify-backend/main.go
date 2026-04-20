@@ -21,6 +21,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/sirupsen/logrus"
+	"os/signal"
+	"syscall"
 )
 
 // @Title Managify API
@@ -37,7 +39,7 @@ func main() {
 	}
 
 	if err := database.Connect(); err != nil {
-		logrus.Infoln("Database connection failed: ", err)
+		logrus.Fatalf("Critical Error: Database connection failed after retries: %v", err)
 	}
 
 	app := fiber.New()
@@ -71,13 +73,34 @@ func main() {
 	app.Use(pprof.New())
 	router.Routers(app)
 
-	port := os.Getenv("PORT")
-	addr := fmt.Sprintf(":%s", port)
-	logrus.Infof("Starting server on %s", addr)
-	if err := app.Listen(addr); err != nil {
-		logrus.Fatalf("Failed to start server: %v", err)
+	// Listen from a different goroutine
+	go func() {
+		port := os.Getenv("PORT")
+		addr := fmt.Sprintf(":%s", port)
+		logrus.Infof("Starting server on %s", addr)
+		if err := app.Listen(addr); err != nil {
+			logrus.Errorf("Failed to start server: %v", err)
+		}
+	}()
+
+	// Create channel for idle connections.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	<-c // Block here until interrupted
+	logrus.Info("Gracefully shutting down...")
+
+	// Shutdown Fiber
+	if err := app.Shutdown(); err != nil {
+		logrus.Errorf("Fiber shutdown failed: %v", err)
 	}
 
+	// Disconnect from MongoDB
+	if err := database.Disconnect(); err != nil {
+		logrus.Errorf("MongoDB disconnection failed: %v", err)
+	}
+
+	logrus.Info("Server stopped.")
 }
 
 func apiLimiter(app *fiber.App) {
