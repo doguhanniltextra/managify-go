@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"managify/models"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,11 +17,7 @@ func init() {
 	log.SetLevel(logrus.DebugLevel)
 }
 
-func (s *UserService) GetAllUsers() ([]models.User, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	users, err := s.userRepo.FindAllUsers(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find users")
@@ -33,16 +28,13 @@ func (s *UserService) GetAllUsers() ([]models.User, error) {
 	return users, nil
 }
 
-func (s *UserService) GetUserById(id string) (*models.User, error) {
+func (s *UserService) GetUserById(ctx context.Context, id string) (*models.User, error) {
 
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		log.WithError(err).Warnf("Invalid ObjectID format: %s", id)
 		return nil, fmt.Errorf("invalid id: %v", err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	user, err := s.userRepo.FindByID(ctx, objID)
 	if err != nil {
@@ -57,15 +49,12 @@ func (s *UserService) GetUserById(id string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *UserService) DeleteUserById(id string) (int64, error) {
+func (s *UserService) DeleteUserById(ctx context.Context, id string) (int64, error) {
 
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return 0, fmt.Errorf("invalid ObjectID format: %v", err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	deletedCount, err := s.userRepo.DeleteByID(ctx, objID)
 	if err != nil {
@@ -79,13 +68,10 @@ func (s *UserService) DeleteUserById(id string) (int64, error) {
 	return deletedCount, nil
 }
 
-func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
+func (s *ProjectService) GetAllProjects(ctx context.Context) ([]models.Project, error) {
 	log.Debug("GetAllProjects called")
 
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	projects, err := projectRepo.FindAll(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find projects")
@@ -95,12 +81,9 @@ func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
 	return projects, nil
 }
 
-func (s *RoleService) GetAllRoles() ([]models.Role, error) {
+func (s *RoleService) GetAllRoles(ctx context.Context) ([]models.Role, error) {
 
 	roleRepo := s.roleRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	roles, err := roleRepo.FindAll(ctx)
 	if err != nil {
 		log.WithError(err).Error("Failed to find roles")

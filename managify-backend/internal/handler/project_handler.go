@@ -42,7 +42,7 @@ func CreateProjectHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := service.GetProjectService().CreateProject(&project, user)
+	res, err := service.GetProjectService().CreateProject(c.UserContext(), &project, user)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,
@@ -83,7 +83,7 @@ func DeleteProjectHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	err = service.GetProjectService().DeleteProjectById(objID, user)
+	err = service.GetProjectService().DeleteProjectById(c.UserContext(), objID, user)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,
@@ -128,7 +128,7 @@ func GetProjectHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": constant.ErrInternalServer})
 	}
 
-	project, err := service.GetProjectService().GetProject(projectID, user)
+	project, err := service.GetProjectService().GetProject(c.UserContext(), projectID, user)
 	if err != nil {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": constant.ErrForbidden})
 	}
@@ -146,13 +146,13 @@ func GetProjectHandler(c *fiber.Ctx) error {
 	// Statuses parallel fetch
 	go func() {
 		defer wg.Done()
-		statuses, statusErr = service.GetStatusService().GetStatusesByProjectId(projectID)
+		statuses, statusErr = service.GetStatusService().GetStatusesByProjectId(c.UserContext(), projectID)
 	}()
 
 	// Team members parallel fetch
 	go func() {
 		defer wg.Done()
-		_, teamMembers, teamErr = service.GetProjectService().GetProjectWithTeam(projectID, user)
+		_, teamMembers, teamErr = service.GetProjectService().GetProjectWithTeam(c.UserContext(), projectID, user)
 	}()
 
 	wg.Wait()
@@ -166,7 +166,7 @@ func GetProjectHandler(c *fiber.Ctx) error {
 
 	var statusesWithIssues []StatusWithIssues
 	for _, status := range statuses {
-		if _, err := service.GetIssueService().GetIssuesByStatusID(status.ID); err != nil {
+		if _, err := service.GetIssueService().GetIssuesByStatusID(c.UserContext(), status.ID); err != nil {
 			fmt.Println(err)
 		}
 
@@ -222,7 +222,7 @@ func DeleteMemberFromProjectByIdHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": constant.ErrBadRequest})
 	}
 
-	err = service.GetProjectService().DeleteMemberFromProjectById(user.ID, memberIdObj)
+	err = service.GetProjectService().DeleteMemberFromProjectById(c.UserContext(), user.ID, memberIdObj)
 
 	if err != nil {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{

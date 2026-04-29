@@ -8,7 +8,7 @@ import (
 )
 
 func GetUsersHandler(c *fiber.Ctx) error {
-	users, err := service.GetUserService().GetAllUsers()
+	users, err := service.GetUserService().GetAllUsers(c.UserContext())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,
@@ -30,7 +30,7 @@ func GetUserById(c *fiber.Ctx) error {
 		})
 	}
 
-	user, err := service.GetUserService().GetUserById(id)
+	user, err := service.GetUserService().GetUserById(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,
@@ -52,7 +52,7 @@ func DeleteUserById(c *fiber.Ctx) error {
 			"message": constant.ErrBadRequest,
 		})
 	}
-	res, err := service.GetUserService().DeleteUserById(id)
+	res, err := service.GetUserService().DeleteUserById(c.UserContext(), id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,
@@ -67,7 +67,7 @@ func DeleteUserById(c *fiber.Ctx) error {
 }
 
 func GetProjectsHandler(c *fiber.Ctx) error {
-	projects, err := service.GetProjectService().GetAllProjects()
+	projects, err := service.GetProjectService().GetAllProjects(c.UserContext())
 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -82,7 +82,7 @@ func GetProjectsHandler(c *fiber.Ctx) error {
 }
 
 func GetRolesHandler(c *fiber.Ctx) error {
-	roles, err := service.GetRoleService().GetAllRoles()
+	roles, err := service.GetRoleService().GetAllRoles(c.UserContext())
 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

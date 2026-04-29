@@ -37,7 +37,7 @@ func CreateProjectInviteHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	invite, err := service.GetInviteService().CreateProjectInvite(user.ID, req)
+	invite, err := service.GetInviteService().CreateProjectInvite(c.UserContext(), user.ID, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
@@ -83,7 +83,7 @@ func RespondProjectInviteHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": constant.ErrBadRequest})
 	}
 
-	invite, err := service.GetInviteService().RespondProjectInvite(user.ID, inviteID, accept)
+	invite, err := service.GetInviteService().RespondProjectInvite(c.UserContext(), user.ID, inviteID, accept)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": constant.ErrBadRequest})
 	}
@@ -112,7 +112,7 @@ func GetInviteHandlerById(c *fiber.Ctx) error {
 		})
 	}
 
-	models, err := service.GetInviteService().GetProjectInvites(objID)
+	models, err := service.GetInviteService().GetProjectInvites(c.UserContext(), objID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,

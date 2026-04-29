@@ -35,21 +35,16 @@ func GetSubscriptionService() *SubscriptionService {
 	return subscriptionService
 }
 
-func (s *SubscriptionService) GetByUserId(userIDHex string) (*models.Subscription, error) {
+func (s *SubscriptionService) GetByUserId(ctx context.Context, userIDHex string) (*models.Subscription, error) {
 	userObjID, err := primitive.ObjectIDFromHex(userIDHex)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	return s.subscriptionRepo.FindByUserID(ctx, userObjID)
 }
 
-func (s *SubscriptionService) CreateSubscription(subscription *models.Subscription) (*models.Subscription, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *SubscriptionService) CreateSubscription(ctx context.Context, subscription *models.Subscription) (*models.Subscription, error) {
 
 	if subscription.ID.IsZero() {
 		subscription.ID = primitive.NewObjectID()
@@ -63,7 +58,7 @@ func (s *SubscriptionService) CreateSubscription(subscription *models.Subscripti
 	return subscription, nil
 }
 
-func (s *SubscriptionService) CreateDefaultSubscription(userID primitive.ObjectID) (*models.Subscription, error) {
+func (s *SubscriptionService) CreateDefaultSubscription(ctx context.Context, userID primitive.ObjectID) (*models.Subscription, error) {
 	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // Default to 1 month duration
 
@@ -76,5 +71,5 @@ func (s *SubscriptionService) CreateDefaultSubscription(userID primitive.ObjectI
 		IsValid:               true,
 	}
 
-	return s.CreateSubscription(subscription)
+	return s.CreateSubscription(ctx, subscription)
 }

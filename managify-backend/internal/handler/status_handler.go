@@ -41,7 +41,7 @@ func CreateStatusHandler(c *fiber.Ctx) error {
 
 	status.CreatorID = user.ID
 
-	res, err := service.GetStatusService().CreateStatus(&status)
+	createdStatus, err := service.GetStatusService().CreateStatus(c.UserContext(), &status)
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -51,7 +51,7 @@ func CreateStatusHandler(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": constant.SuccessCreated,
-		"data":    res,
+		"data":    createdStatus,
 	})
 }
 
@@ -75,13 +75,13 @@ func DeleteStatusHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	statusID, err := primitive.ObjectIDFromHex(idParam)
+	statusOID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
 		})
 	}
-	projectID, err := primitive.ObjectIDFromHex(projectParam)
+	projectOID, err := primitive.ObjectIDFromHex(projectParam)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
@@ -94,7 +94,7 @@ func DeleteStatusHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	err = service.GetStatusService().DeleteStatus(statusID, projectID, user.ID)
+	err = service.GetStatusService().DeleteStatus(c.UserContext(), statusOID, projectOID, user.ID)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

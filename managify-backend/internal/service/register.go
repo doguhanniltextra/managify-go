@@ -13,7 +13,6 @@ import (
 	"managify/internal/middleware"
 	"managify/internal/notification"
 	"managify/internal/repository"
-	"time"
 
 	"managify/models"
 
@@ -62,14 +61,11 @@ func generateToken(n int) (string, error) {
 }
 
 
-func (s *UserService) CreateUser(user *models.User) (*models.User, string, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*models.User, string, error) {
 
 	hashedPassword, err := s.EncryptPassword([]byte(user.Password))
 	if err != nil {
-		log.Errorf("Password encryption failed: %v", err)
+		logrus.Errorf("Password encryption failed: %v", err)
 		return nil, "", err
 	}
 	user.Password = string(hashedPassword)
@@ -84,13 +80,13 @@ func (s *UserService) CreateUser(user *models.User) (*models.User, string, error
 
 	err = s.userRepo.InsertOne(ctx, user)
 	if err != nil {
-		log.Errorf("Failed to insert user into DB: %v", err)
+		logrus.Errorf("Failed to insert user into DB: %v", err)
 		return nil, "", err
 	}
 
 	tokenString, err := s.CreateToken(user)
 	if err != nil {
-		log.Errorf("Failed to create JWT token: %v", err)
+		logrus.Errorf("Failed to create JWT token: %v", err)
 		return nil, "", err
 	}
 
@@ -101,9 +97,7 @@ func (s *UserService) CreateUser(user *models.User) (*models.User, string, error
 	return user, tokenString, nil
 }
 
-func (s *UserService) VerifyEmail(token string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *UserService) VerifyEmail(ctx context.Context, token string) (*models.User, error) {
 
 	user, err := s.userRepo.FindByVerificationToken(ctx, token)
 	if err != nil {
@@ -121,14 +115,11 @@ func (s *UserService) VerifyEmail(token string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginResponse, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *UserService) Login(ctx context.Context, req *request.UserLoginRequest) (*response.UserLoginResponse, error) {
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil || user == nil {
-		log.Warnf("User not found: %s", req.Email)
+		logrus.Warnf("User not found: %s", req.Email)
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
@@ -151,17 +142,15 @@ func (s *UserService) Login(req *request.UserLoginRequest) (*response.UserLoginR
 		go s.notifier.SendVerificationEmail(user.Email, user.VerificationToken)
 	}
 
-	log.Infof("User logged in successfully: %s", req.Email)
+	logrus.Infof("User logged in successfully: %s", req.Email)
 	return resp, nil
 }
 
-func (s *UserService) IsUserValid(userId primitive.ObjectID) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *UserService) IsUserValid(ctx context.Context, userId primitive.ObjectID) (bool, error) {
 
 	user, err := s.userRepo.FindByID(ctx, userId)
 	if err != nil {
-		log.WithError(err).Error("failed to fetch user")
+		logrus.WithError(err).Error("failed to fetch user")
 		return false, err
 	}
 	if user == nil {
@@ -178,9 +167,7 @@ func encryptPassword(givenPassword []byte) (password []byte, error error) {
 	return hashedPassword, nil
 }
 
-func (s *UserService) GetUserByGivenId(givenId string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *UserService) GetUserByGivenId(ctx context.Context, givenId string) (*models.User, error) {
 
 	objID, err := primitive.ObjectIDFromHex(givenId)
 	if err != nil {

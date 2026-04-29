@@ -49,7 +49,7 @@ func GoogleCallbackHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	user, token, err := service.GetGoogleAuthService().HandleCallback(req.Code)
+	user, token, err := service.GetGoogleAuthService().HandleCallback(c.UserContext(), req.Code)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,

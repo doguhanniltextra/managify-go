@@ -12,7 +12,7 @@ func GetLogsHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Project ID is required"})
 	}
 
-	logs, err := service.GetLogService().GetLogsByProjectID(projectID)
+	logs, err := service.GetLogService().GetLogsByProjectID(c.UserContext(), projectID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to fetch logs"})
 	}
@@ -26,7 +26,7 @@ func GetLogsHandlerByUserId(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "User ID is required"})
 	}
 
-	logs, err := service.GetLogService().GetLogsByUserId(userId)
+	logs, err := service.GetLogService().GetLogsByUserId(c.UserContext(), userId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to fetch logs"})
 	}

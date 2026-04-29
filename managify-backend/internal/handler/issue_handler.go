@@ -21,12 +21,12 @@ import (
 // @Router /issues/status/{statusID} [get]
 func GetIssuesByStatusHandler(c *fiber.Ctx) error {
 	statusIDHex := c.Params("statusID")
-	statusID, err := primitive.ObjectIDFromHex(statusIDHex)
+	statusOID, err := primitive.ObjectIDFromHex(statusIDHex)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": constant.ErrBadRequest})
 	}
 
-	issues, err := service.GetIssueService().GetIssuesByStatusID(statusID)
+	issues, err := service.GetIssueService().GetIssuesByStatusID(c.UserContext(), statusOID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": constant.ErrInternalServer})
 	}
@@ -79,7 +79,7 @@ func CreateIssueHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := service.GetIssueService().CreateIssue(&issue, user.ID)
+	res, err := service.GetIssueService().CreateIssue(c.UserContext(), &issue, user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,
@@ -111,14 +111,14 @@ func DeleteIssueHandler(c *fiber.Ctx) error {
 	}
 
 	idStr := c.Params("id")
-	objID, err := primitive.ObjectIDFromHex(idStr)
+	issueOID, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
 		})
 	}
 
-	err = service.GetIssueService().DeleteIssue(objID, user.ID)
+	err = service.GetIssueService().DeleteIssue(c.UserContext(), issueOID, user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,
@@ -153,21 +153,21 @@ func UpdateIssueStatusHandler(c *fiber.Ctx) error {
 	issueIDHex := c.Params("issueID")
 	newStatusIDHex := c.Params("statusID")
 
-	issueID, err := primitive.ObjectIDFromHex(issueIDHex)
+	issueOID, err := primitive.ObjectIDFromHex(issueIDHex)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
 		})
 	}
 
-	newStatusID, err := primitive.ObjectIDFromHex(newStatusIDHex)
+	statusOID, err := primitive.ObjectIDFromHex(newStatusIDHex)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
 		})
 	}
 
-	updatedIssue, err := service.GetIssueService().UpdateIssueStatus(issueID, newStatusID, user.ID)
+	updatedIssue, err := service.GetIssueService().UpdateIssueStatus(c.UserContext(), issueOID, statusOID, user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": err.Error(),
@@ -199,12 +199,12 @@ func UpdateIssueStatusHandler(c *fiber.Ctx) error {
 // @Router /issues/project/{projectID}/oncoming [get]
 func GetOncomingIssuesHandler(c *fiber.Ctx) error {
 	projectIDHex := c.Params("projectID")
-	projectID, err := primitive.ObjectIDFromHex(projectIDHex)
+	projectOID, err := primitive.ObjectIDFromHex(projectIDHex)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": constant.ErrBadRequest})
 	}
 
-	issues, err := service.GetIssueService().GetOncomingIssues(projectID)
+	issues, err := service.GetIssueService().GetOncomingIssues(c.UserContext(), projectOID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": constant.ErrInternalServer})
 	}

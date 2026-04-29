@@ -15,9 +15,9 @@ import (
 
 type IssueService struct {
 	issueRepo       repository.IssueRepository
-	createLog       func(*models.ProjectLog) error
-	isProjectValid  func(primitive.ObjectID) (bool, error)
-	isUserInProject func(primitive.ObjectID, primitive.ObjectID) (bool, error)
+	createLog       func(context.Context, *models.ProjectLog) error
+	isProjectValid  func(context.Context, primitive.ObjectID) (bool, error)
+	isUserInProject func(context.Context, primitive.ObjectID, primitive.ObjectID) (bool, error)
 }
 
 var issueService *IssueService
@@ -42,13 +42,10 @@ func GetIssueService() *IssueService {
 	return issueService
 }
 
-func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectID) (*models.Issue, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *IssueService) CreateIssue(ctx context.Context, issue *models.Issue, userID primitive.ObjectID) (*models.Issue, error) {
 
 	// Project validation
-	isProjectValid, err := s.isProjectValid(issue.ProjectID)
+	isProjectValid, err := s.isProjectValid(ctx, issue.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +54,7 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 	}
 
 	// User validation
-	isUserInProject, err := s.isUserInProject(userID, issue.ProjectID)
+	isUserInProject, err := s.isUserInProject(ctx, userID, issue.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +79,13 @@ func (s *IssueService) CreateIssue(issue *models.Issue, userID primitive.ObjectI
 		Message:   "Issue Has Been Created -> " + issue.Title,
 		Timestamp: time.Now(),
 	}
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 
 	return issue, nil
 }
-func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (s *IssueService) DeleteIssue(ctx context.Context, issueID, userID primitive.ObjectID) error {
 	issueRepo := s.issueRepo
 
 	issue, err := issueRepo.FindByID(ctx, issueID)
@@ -102,7 +96,7 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 		return fmt.Errorf("issue not found")
 	}
 
-	isUserInProject, err := s.isUserInProject(userID, issue.ProjectID)
+	isUserInProject, err := s.isUserInProject(ctx, userID, issue.ProjectID)
 	if err != nil {
 		return err
 	}
@@ -117,9 +111,7 @@ func (s *IssueService) DeleteIssue(issueID, userID primitive.ObjectID) error {
 	}
 	return nil
 }
-func (s *IssueService) GetIssuesByStatusID(statusID primitive.ObjectID) ([]*models.Issue, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *IssueService) GetIssuesByStatusID(ctx context.Context, statusID primitive.ObjectID) ([]*models.Issue, error) {
 
 	issueRepo := s.issueRepo
 
@@ -129,10 +121,7 @@ func (s *IssueService) GetIssuesByStatusID(statusID primitive.ObjectID) ([]*mode
 	}
 	return issues, nil
 }
-func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.ObjectID) (*models.Issue, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (s *IssueService) UpdateIssueStatus(ctx context.Context, issueID, newStatusID, userID primitive.ObjectID) (*models.Issue, error) {
 	issueRepo := s.issueRepo
 
 	issue, err := issueRepo.FindByID(ctx, issueID)
@@ -158,7 +147,7 @@ func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.
 		Message:   fmt.Sprintf("Issue '%s' status changed to new status", issue.Title),
 		Timestamp: time.Now(),
 	}
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 
@@ -167,9 +156,7 @@ func (s *IssueService) UpdateIssueStatus(issueID, newStatusID, userID primitive.
 	return issue, nil
 }
 
-func (s *IssueService) GetOncomingIssues(projectID primitive.ObjectID) ([]*models.Issue, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *IssueService) GetOncomingIssues(ctx context.Context, projectID primitive.ObjectID) ([]*models.Issue, error) {
 
 	issueRepo := s.issueRepo
 	currentTime := time.Now()

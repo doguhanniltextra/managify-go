@@ -15,7 +15,7 @@ import (
 
 type RoleService struct {
 	roleRepo  repository.RoleRepository
-	createLog func(*models.ProjectLog) error
+	createLog func(context.Context, *models.ProjectLog) error
 }
 
 var roleService *RoleService
@@ -38,11 +38,11 @@ func GetRoleService() *RoleService {
 	return roleService
 }
 
-func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.ObjectID, roleName string) (*models.Role, error) {
+func (s *RoleService) AddRole(ctx context.Context, userId primitive.ObjectID, projectId primitive.ObjectID, roleName string) (*models.Role, error) {
 
 	ps := GetProjectService()
 
-	projectValid, err := ps.IsProjectValid(projectId)
+	projectValid, err := ps.IsProjectValid(ctx, projectId)
 	if err != nil || !projectValid {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 		RoleName:  roleName,
 	}
 
-	exists, err := ps.IsUserInProject(role.UserID, role.ProjectID)
+	exists, err := ps.IsUserInProject(ctx, role.UserID, role.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,6 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 	}
 
 	roleRepo := s.roleRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	err = roleRepo.InsertOne(ctx, role)
 	if err != nil {
@@ -80,16 +78,14 @@ func (s *RoleService) AddRole(userId primitive.ObjectID, projectId primitive.Obj
 		Message:   "Role Has Been Assigned -> " + roleName,
 		Timestamp: time.Now(),
 	}
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 	return role, nil
 }
 
-func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
+func (s *RoleService) DeleteRole(ctx context.Context, deleteId primitive.ObjectID) error {
 	roleRepo := s.roleRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	deletedCount, err := roleRepo.DeleteByID(ctx, deleteId)
 	if err != nil {
@@ -104,10 +100,8 @@ func (s *RoleService) DeleteRole(deleteId primitive.ObjectID) error {
 	return nil
 }
 
-func (s *ProjectService) IsOwner(ownerId, projectId primitive.ObjectID) (bool, error) {
+func (s *ProjectService) IsOwner(ctx context.Context, ownerId, projectId primitive.ObjectID) (bool, error) {
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	isOwner, err := projectRepo.VerifyProjectOwner(ctx, projectId, ownerId)
 	if err != nil {

@@ -17,7 +17,7 @@ type ProjectService struct {
 	projectRepo repository.ProjectRepository
 	userRepo    repository.UserRepository
 	subRepo     repository.SubscriptionRepository
-	createLog   func(*models.ProjectLog) error
+	createLog   func(context.Context, *models.ProjectLog) error
 }
 
 var projectService *ProjectService
@@ -42,9 +42,7 @@ func GetProjectService() *ProjectService {
 	return projectService
 }
 
-func (s *ProjectService) CreateProject(project *models.Project, user *models.User) (*models.Project, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *ProjectService) CreateProject(ctx context.Context, project *models.Project, user *models.User) (*models.Project, error) {
 
 	userRepo := s.userRepo
 	projectRepo := s.projectRepo
@@ -82,18 +80,15 @@ func (s *ProjectService) CreateProject(project *models.Project, user *models.Use
 		Message:   "Project has been created",
 		Timestamp: time.Now(),
 	}
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 
 	return project, nil
 }
 
-func (s *ProjectService) reduceProjectSize(ownerID primitive.ObjectID) error {
+func (s *ProjectService) reduceProjectSize(ctx context.Context, ownerID primitive.ObjectID) error {
 	log.Debugf("reduceProjectSize called for ownerID=%s", ownerID.Hex())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	userRepo := s.userRepo
 	err := userRepo.IncrementProjectSize(ctx, ownerID, -1)
@@ -105,11 +100,8 @@ func (s *ProjectService) reduceProjectSize(ownerID primitive.ObjectID) error {
 	return nil
 }
 
-func (s *ProjectService) DeleteProjectById(objID primitive.ObjectID, user *models.User) error {
+func (s *ProjectService) DeleteProjectById(ctx context.Context, objID primitive.ObjectID, user *models.User) error {
 	log.Debugf("DeleteProjectById called with objID=%s, userID=%s", objID.Hex(), user.ID.Hex())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	projectRepo := s.projectRepo
 
@@ -136,18 +128,16 @@ func (s *ProjectService) DeleteProjectById(objID primitive.ObjectID, user *model
 	}
 
 	if project != nil {
-		s.reduceProjectSize(project.OwnerID)
+		s.reduceProjectSize(ctx, project.OwnerID)
 	}
 
 	log.Infof("Project deleted successfully: %s, deletedCount=%d", objID.Hex(), deletedCount)
 	return nil
 }
 
-func (s *ProjectService) GetProject(projectID primitive.ObjectID, user *models.User) (*models.Project, error) {
+func (s *ProjectService) GetProject(ctx context.Context, projectID primitive.ObjectID, user *models.User) (*models.Project, error) {
 
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	project, err := projectRepo.FindOneWithAccess(ctx, projectID, user.ID)
 
@@ -163,9 +153,7 @@ func (s *ProjectService) GetProject(projectID primitive.ObjectID, user *models.U
 	return project, nil
 }
 
-func (s *ProjectService) IsProjectValid(projectID primitive.ObjectID) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *ProjectService) IsProjectValid(ctx context.Context, projectID primitive.ObjectID) (bool, error) {
 
 	projectRepo := s.projectRepo
 	valid, err := projectRepo.VerifyProject(ctx, projectID)
@@ -177,9 +165,7 @@ func (s *ProjectService) IsProjectValid(projectID primitive.ObjectID) (bool, err
 	return valid, nil
 }
 
-func (s *ProjectService) IsUserInProject(userID, projectID primitive.ObjectID) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *ProjectService) IsUserInProject(ctx context.Context, userID, projectID primitive.ObjectID) (bool, error) {
 
 	projectRepo := s.projectRepo
 	inProject, err := projectRepo.CheckUserInProject(ctx, projectID, userID)
@@ -191,14 +177,8 @@ func (s *ProjectService) IsUserInProject(userID, projectID primitive.ObjectID) (
 	return inProject, nil
 }
 
-func (s *ProjectService) GetProjectsByUserId(userIDHex string) ([]*models.Project, error) {
+func (s *ProjectService) GetProjectsByUserId(ctx context.Context, userIDHex string) ([]*models.Project, error) {
 	userObjID, err := primitive.ObjectIDFromHex(userIDHex)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	projectRepo := s.projectRepo
 	projects, err := projectRepo.FindAllByUserID(ctx, userObjID)
@@ -209,10 +189,8 @@ func (s *ProjectService) GetProjectsByUserId(userIDHex string) ([]*models.Projec
 	return projects, nil
 }
 
-func (s *ProjectService) GetProjectWithTeam(projectID primitive.ObjectID, user *models.User) (*models.Project, []models.User, error) {
+func (s *ProjectService) GetProjectWithTeam(ctx context.Context, projectID primitive.ObjectID, user *models.User) (*models.Project, []models.User, error) {
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	project, err := projectRepo.FindOneWithAccess(ctx, projectID, user.ID)
 	if err != nil {
@@ -234,10 +212,8 @@ func (s *ProjectService) GetProjectWithTeam(projectID primitive.ObjectID, user *
 	return project, teamMembers, nil
 }
 
-func (s *ProjectService) DeleteMemberFromProjectById(userId, memberId primitive.ObjectID) error {
+func (s *ProjectService) DeleteMemberFromProjectById(ctx context.Context, userId, memberId primitive.ObjectID) error {
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	modifiedCount, err := projectRepo.RemoveMemberFromProject(ctx, userId, memberId)
 	if err != nil {

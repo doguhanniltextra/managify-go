@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -48,21 +49,21 @@ func (s *GoogleAuthService) GetGoogleAuthURL() string {
 	return "https://accounts.google.com/o/oauth2/v2/auth?" + params.Encode()
 }
 
-func (s *GoogleAuthService) HandleCallback(code string) (*models.User, string, error) {
+func (s *GoogleAuthService) HandleCallback(ctx context.Context, code string) (*models.User, string, error) {
 
-	tokenResp, err := s.exchangeCodeForToken(code)
+	tokenResp, err := s.exchangeCodeForToken(ctx, code)
 	if err != nil {
 		log.WithError(err).Error("Google token exchange failed")
 		return nil, "", fmt.Errorf("google token exchange failed: %w", err)
 	}
 
-	userInfo, err := s.getUserInfo(tokenResp.AccessToken)
+	userInfo, err := s.getUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
 		log.WithError(err).Error("Failed to get Google user info")
 		return nil, "", fmt.Errorf("failed to get user info: %w", err)
 	}
 
-	user, err := s.findOrCreateGoogleUser(userInfo)
+	user, err := s.findOrCreateGoogleUser(ctx, userInfo)
 	if err != nil {
 		log.WithError(err).Error("Failed to find or create Google user")
 		return nil, "", fmt.Errorf("failed to process user: %w", err)
@@ -78,7 +79,7 @@ func (s *GoogleAuthService) HandleCallback(code string) (*models.User, string, e
 	return user, token, nil
 }
 
-func (s *GoogleAuthService) exchangeCodeForToken(code string) (*response.GoogleTokenResponse, error) {
+func (s *GoogleAuthService) exchangeCodeForToken(ctx context.Context, code string) (*response.GoogleTokenResponse, error) {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 	redirectURI := os.Getenv("GOOGLE_REDIRECT_URI")
@@ -90,7 +91,14 @@ func (s *GoogleAuthService) exchangeCodeForToken(code string) (*response.GoogleT
 	data.Set("redirect_uri", redirectURI)
 	data.Set("grant_type", "authorization_code")
 
-	resp, err := http.PostForm("https://oauth2.googleapis.com/token", data)
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://oauth2.googleapis.com/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("token request failed: %w", err)
 	}
@@ -115,14 +123,14 @@ func (s *GoogleAuthService) exchangeCodeForToken(code string) (*response.GoogleT
 }
 
 // GET https://www.googleapis.com/oauth2/v3/userinfo
-func (s *GoogleAuthService) getUserInfo(accessToken string) (*response.GoogleUserInfo, error) {
-	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+func (s *GoogleAuthService) getUserInfo(ctx context.Context, accessToken string) (*response.GoogleUserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create userinfo request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("userinfo request failed: %w", err)
@@ -147,9 +155,7 @@ func (s *GoogleAuthService) getUserInfo(accessToken string) (*response.GoogleUse
 	return &userInfo, nil
 }
 
-func (s *GoogleAuthService) findOrCreateGoogleUser(info *response.GoogleUserInfo) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *GoogleAuthService) findOrCreateGoogleUser(ctx context.Context, info *response.GoogleUserInfo) (*models.User, error) {
 
 	// 1. Repository üzerinden e-posta ile mevcut kullanıcıyı ara
 	existingUser, err := s.userRepo.FindByEmail(ctx, info.Email)
@@ -191,7 +197,7 @@ func (s *GoogleAuthService) findOrCreateGoogleUser(info *response.GoogleUserInfo
 		SubscriptionEndDate:   time.Now(),
 	}
 
-	if _, err := GetSubscriptionService().CreateSubscription(&subscription); err != nil {
+	if _, err := GetSubscriptionService().CreateSubscription(ctx, &subscription); err != nil {
 		log.WithError(err).Warn("Failed to create subscription for Google user")
 	}
 

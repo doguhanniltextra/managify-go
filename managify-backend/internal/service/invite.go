@@ -27,7 +27,7 @@ type InviteService struct {
 	inviteRepo  repository.ProjectInviteRepository
 	userRepo    repository.UserRepository
 	projectRepo repository.ProjectRepository
-	createLog   func(*models.ProjectLog) error
+	createLog   func(context.Context, *models.ProjectLog) error
 }
 
 var inviteService *InviteService
@@ -44,13 +44,10 @@ func GetInviteService() *InviteService {
 	return inviteService
 }
 
-func (s *InviteService) CreateProjectInvite(senderID primitive.ObjectID, req request.ProjectInviteRequest) (*models.ProjectInvite, error) {
+func (s *InviteService) CreateProjectInvite(ctx context.Context, senderID primitive.ObjectID, req request.ProjectInviteRequest) (*models.ProjectInvite, error) {
 	inviteRepo := s.inviteRepo
 	userRepo := s.userRepo
 	projectRepo := s.projectRepo
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	receiver, err := userRepo.FindByEmail(ctx, req.Email)
 	if err != nil || receiver == nil {
@@ -95,7 +92,7 @@ func (s *InviteService) CreateProjectInvite(senderID primitive.ObjectID, req req
 		Timestamp: time.Now(),
 	}
 
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 
@@ -111,13 +108,10 @@ type ProjectInviteFull struct {
 	Receiver  models.User        `json:"receiver"`
 }
 
-func (s *InviteService) GetProjectInvites(receiverID primitive.ObjectID) ([]*ProjectInviteFull, error) {
+func (s *InviteService) GetProjectInvites(ctx context.Context, receiverID primitive.ObjectID) ([]*ProjectInviteFull, error) {
 	inviteRepo := s.inviteRepo
 	userRepo := s.userRepo
 	projectRepo := s.projectRepo
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	invites, err := inviteRepo.FindInvitesByReceiverID(ctx, receiverID)
 	if err != nil {
@@ -155,12 +149,10 @@ func (s *InviteService) GetProjectInvites(receiverID primitive.ObjectID) ([]*Pro
 	return result, nil
 }
 
-func (s *InviteService) RespondProjectInvite(userID, inviteID primitive.ObjectID, accept bool) (*models.ProjectInvite, error) {
+func (s *InviteService) RespondProjectInvite(ctx context.Context, userID, inviteID primitive.ObjectID, accept bool) (*models.ProjectInvite, error) {
 	log.Debugf("RespondProjectInvite called with userID=%s, inviteID=%s, accept=%v", userID.Hex(), inviteID.Hex(), accept)
 
 	inviteRepo := s.inviteRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	status := "declined"
 	if accept {
@@ -176,7 +168,7 @@ func (s *InviteService) RespondProjectInvite(userID, inviteID primitive.ObjectID
 	log.Infof("Invite updated successfully: %+v", *invite)
 
 	if accept {
-		if err := s.addUserToProject(invite.ProjectID, userID); err != nil {
+		if err := s.addUserToProject(ctx, invite.ProjectID, userID); err != nil {
 			log.WithError(err).Errorf("Failed to add user to project: projectID=%s, userID=%s", invite.ProjectID.Hex(), userID.Hex())
 			return nil, fmt.Errorf("failed to add user to project: %v", err)
 		}
@@ -188,7 +180,7 @@ func (s *InviteService) RespondProjectInvite(userID, inviteID primitive.ObjectID
 			Message:   "Invite has been accepted",
 			Timestamp: time.Now(),
 		}
-		if err := s.createLog(&projectLog); err != nil {
+		if err := s.createLog(ctx, &projectLog); err != nil {
 			return nil, err
 		}
 		log.Infof("User %s added to project %s team", userID.Hex(), invite.ProjectID.Hex())
@@ -197,11 +189,9 @@ func (s *InviteService) RespondProjectInvite(userID, inviteID primitive.ObjectID
 	return invite, nil
 }
 
-func (s *InviteService) addUserToProject(projectID, userID primitive.ObjectID) error {
+func (s *InviteService) addUserToProject(ctx context.Context, projectID, userID primitive.ObjectID) error {
 	log.Debugf("addUserToProject called with projectID=%s, userID=%s", projectID.Hex(), userID.Hex())
 	projectRepo := s.projectRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	err := projectRepo.AddUserToProject(ctx, projectID, userID)
 	if err != nil {

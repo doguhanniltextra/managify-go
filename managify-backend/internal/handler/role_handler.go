@@ -46,7 +46,7 @@ func CreateRoleHandler(c *fiber.Ctx) error {
 
 	fmt.Println(user.ID)
 
-	isOwner, err := service.GetProjectService().IsOwner(user.ID, roleProjectID)
+	isOwner, err := service.GetProjectService().IsOwner(c.UserContext(), user.ID, roleProjectID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,
@@ -59,7 +59,7 @@ func CreateRoleHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := service.GetRoleService().AddRole(roleUserID, roleProjectID, RoleName)
+	res, err := service.GetRoleService().AddRole(c.UserContext(), roleUserID, roleProjectID, RoleName)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": constant.ErrBadRequest,
@@ -99,7 +99,7 @@ func DeleteRoleHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	err = service.GetRoleService().DeleteRole(roleID)
+	err = service.GetRoleService().DeleteRole(c.UserContext(), roleID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,

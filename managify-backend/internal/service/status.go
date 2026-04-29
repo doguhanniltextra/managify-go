@@ -14,9 +14,9 @@ import (
 
 type StatusService struct {
 	statusRepo      repository.StatusRepository
-	createLog       func(*models.ProjectLog) error
-	isProjectValid  func(primitive.ObjectID) (bool, error)
-	isUserInProject func(primitive.ObjectID, primitive.ObjectID) (bool, error)
+	createLog       func(context.Context, *models.ProjectLog) error
+	isProjectValid  func(context.Context, primitive.ObjectID) (bool, error)
+	isUserInProject func(context.Context, primitive.ObjectID, primitive.ObjectID) (bool, error)
 }
 
 var statusService *StatusService
@@ -41,13 +41,13 @@ func GetStatusService() *StatusService {
 	return statusService
 }
 
-func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, error) {
-	projectValid, err := s.isProjectValid(status.ProjectID)
+func (s *StatusService) CreateStatus(ctx context.Context, status *models.Status) (*models.Status, error) {
+	projectValid, err := s.isProjectValid(ctx, status.ProjectID)
 	if err != nil || !projectValid {
 		return nil, err
 	}
 
-	exists, err := s.isUserInProject(status.CreatorID, status.ProjectID)
+	exists, err := s.isUserInProject(ctx, status.CreatorID, status.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +56,6 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 	}
 
 	statusRepo := s.statusRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	status.CreatedAt = time.Now()
 	status.UpdatedAt = time.Now()
@@ -77,18 +75,16 @@ func (s *StatusService) CreateStatus(status *models.Status) (*models.Status, err
 		Message:   "Status has been added -> " + status.Name,
 		Timestamp: time.Now(),
 	}
-	if err := s.createLog(&projectLog); err != nil {
+	if err := s.createLog(ctx, &projectLog); err != nil {
 		return nil, err
 	}
 	return status, nil
 }
 
-func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId primitive.ObjectID, userId primitive.ObjectID) error {
+func (s *StatusService) DeleteStatus(ctx context.Context, deleteId primitive.ObjectID, projectId primitive.ObjectID, userId primitive.ObjectID) error {
 	statusRepo := s.statusRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
-	exists, err := s.isUserInProject(userId, projectId)
+	exists, err := s.isUserInProject(ctx, userId, projectId)
 	if err != nil {
 		return err
 	}
@@ -109,10 +105,8 @@ func (s *StatusService) DeleteStatus(deleteId primitive.ObjectID, projectId prim
 	return nil
 }
 
-func (s *StatusService) GetStatusesByProjectId(projectID primitive.ObjectID) ([]*models.Status, error) {
+func (s *StatusService) GetStatusesByProjectId(ctx context.Context, projectID primitive.ObjectID) ([]*models.Status, error) {
 	statusRepo := s.statusRepo
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	statuses, err := statusRepo.FindByProjectID(ctx, projectID)
 	if err != nil {

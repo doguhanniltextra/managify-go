@@ -30,7 +30,7 @@ func CreateRegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	createdUser, token, err := service.GetUserService().CreateUser(&user)
+	createdUser, token, err := service.GetUserService().CreateUser(c.UserContext(), &user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": constant.ErrInternalServer,
@@ -48,7 +48,7 @@ func CreateRegisterHandler(c *fiber.Ctx) error {
 	go func() {
 		defer wg.Done()
 		var err error
-		subscription, err = service.GetSubscriptionService().CreateDefaultSubscription(user.ID)
+		subscription, err = service.GetSubscriptionService().CreateDefaultSubscription(c.UserContext(), user.ID)
 		if err != nil {
 			subscriptionErr = err
 			return
@@ -93,7 +93,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := service.GetUserService().Login(&req)
+	res, err := service.GetUserService().Login(c.UserContext(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": constant.ErrUnauthorized,
@@ -137,17 +137,17 @@ func GetUserByIdHandler(c *fiber.Ctx) error {
 
 	go func() {
 		defer wg.Done()
-		user, userErr = service.GetUserService().GetUserById(userIDHex)
+		user, userErr = service.GetUserService().GetUserById(c.UserContext(), userIDHex)
 	}()
 
 	go func() {
 		defer wg.Done()
-		project, projectErr = service.GetProjectService().GetProjectsByUserId(userIDHex)
+		project, projectErr = service.GetProjectService().GetProjectsByUserId(c.UserContext(), userIDHex)
 	}()
 
 	go func() {
 		defer wg.Done()
-		sub, subErr = service.GetSubscriptionService().GetByUserId(userIDHex)
+		sub, subErr = service.GetSubscriptionService().GetByUserId(c.UserContext(), userIDHex)
 	}()
 
 	wg.Wait()
@@ -192,7 +192,7 @@ func VerifyEmailHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Token missing"})
 	}
 
-	user, err := service.GetUserService().VerifyEmail(token)
+	user, err := service.GetUserService().VerifyEmail(c.UserContext(), token)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid or expired token"})
 	}

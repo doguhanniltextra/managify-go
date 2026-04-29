@@ -5,7 +5,6 @@ import (
 	"managify/database"
 	"managify/internal/repository"
 	"managify/models"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,10 +31,8 @@ func GetLogService() *LogService {
 	return logService
 }
 
-func (s *LogService) CreateLog(projectLog *models.ProjectLog) error {
+func (s *LogService) CreateLog(ctx context.Context, projectLog *models.ProjectLog) error {
 	logRepo := repository.NewLogRepository(database.DB)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	projectLog.ID = primitive.NewObjectID()
 
@@ -48,10 +45,8 @@ func (s *LogService) CreateLog(projectLog *models.ProjectLog) error {
 	return nil
 }
 
-func (s *LogService) GetLogsByProjectID(projectID string) ([]models.ProjectLog, error) {
+func (s *LogService) GetLogsByProjectID(ctx context.Context, projectID string) ([]models.ProjectLog, error) {
 	logRepo := repository.NewLogRepository(database.DB)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	logs, err := logRepo.FindByProjectID(ctx, projectID)
 	if err != nil {
@@ -61,10 +56,8 @@ func (s *LogService) GetLogsByProjectID(projectID string) ([]models.ProjectLog, 
 	return logs, nil
 }
 
-func (s *LogService) GetLogsByUserId(userID string) ([]models.ProjectLog, error) {
+func (s *LogService) GetLogsByUserId(ctx context.Context, userID string) ([]models.ProjectLog, error) {
 	logRepo := repository.NewLogRepository(database.DB)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	logs, err := logRepo.GetRecentUserLogs(ctx, userID, 5)
 	if err != nil {
