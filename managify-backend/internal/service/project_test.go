@@ -91,14 +91,14 @@ func TestProjectService_CreateProject(t *testing.T) {
 		projectRepo: mockProjectRepo,
 		userRepo:    mockUserRepo,
 		subRepo:     mockSubRepo,
-		createLog:   func(pl *models.ProjectLog) error { return nil },
+		createLog:   func(ctx context.Context, pl *models.ProjectLog) error { return nil },
 	}
 
 	project := &models.Project{
 		Name: "Test Project",
 	}
 
-	createdProject, err := svc.CreateProject(project, user)
+	createdProject, err := svc.CreateProject(context.Background(), project, user)
 	
 	assert.NoError(t, err)
 	assert.NotNil(t, createdProject)
@@ -132,7 +132,7 @@ func TestProjectService_DeleteProjectById(t *testing.T) {
 		userRepo:    mockUserRepo,
 	}
 
-	err := svc.DeleteProjectById(projectId, user)
+	err := svc.DeleteProjectById(context.Background(), projectId, user)
 	
 	assert.NoError(t, err)
 

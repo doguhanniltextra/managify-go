@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"managify/database"
@@ -17,6 +18,7 @@ type SubscriptionService struct {
 }
 
 var subscriptionService *SubscriptionService
+var subscriptionOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -27,11 +29,13 @@ func init() {
 }
 
 func GetSubscriptionService() *SubscriptionService {
-	if subscriptionService == nil {
-		subscriptionService = &SubscriptionService{
-			subscriptionRepo: repository.NewSubscriptionRepository(database.DB),
+	subscriptionOnce.Do(func() {
+		if subscriptionService == nil {
+			subscriptionService = &SubscriptionService{
+				subscriptionRepo: repository.NewSubscriptionRepository(database.DB),
+			}
 		}
-	}
+	})
 	return subscriptionService
 }
 

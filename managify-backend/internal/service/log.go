@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"managify/database"
 	"managify/internal/repository"
 	"managify/models"
@@ -15,6 +16,7 @@ type LogService struct {
 }
 
 var logService *LogService
+var logOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -25,9 +27,11 @@ func init() {
 }
 
 func GetLogService() *LogService {
-	if logService == nil {
-		logService = &LogService{Collection: "logs"}
-	}
+	logOnce.Do(func() {
+		if logService == nil {
+			logService = &LogService{Collection: "logs"}
+		}
+	})
 	return logService
 }
 

@@ -87,10 +87,10 @@ func TestInviteService_CreateProjectInvite(t *testing.T) {
 		inviteRepo:  mockInviteRepo,
 		userRepo:    mockUserRepo,
 		projectRepo: mockProjRepo,
-		createLog:   func(pl *models.ProjectLog) error { return nil },
+		createLog:   func(ctx context.Context, pl *models.ProjectLog) error { return nil },
 	}
 
-	createdInvite, err := svc.CreateProjectInvite(senderId, req)
+	createdInvite, err := svc.CreateProjectInvite(context.Background(), senderId, req)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, createdInvite)
@@ -120,10 +120,10 @@ func TestInviteService_RespondProjectInvite(t *testing.T) {
 	svc := &InviteService{
 		inviteRepo:  mockInviteRepo,
 		projectRepo: mockProjRepo,
-		createLog:   func(pl *models.ProjectLog) error { return nil },
+		createLog:   func(ctx context.Context, pl *models.ProjectLog) error { return nil },
 	}
 
-	res, err := svc.RespondProjectInvite(userId, inviteId, true)
+	res, err := svc.RespondProjectInvite(context.Background(), userId, inviteId, true)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, res)

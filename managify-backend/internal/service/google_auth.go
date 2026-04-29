@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,13 +25,16 @@ type GoogleAuthService struct {
 }
 
 var googleAuthService *GoogleAuthService
+var googleAuthOnce sync.Once
 
 func GetGoogleAuthService() *GoogleAuthService {
-	if googleAuthService == nil {
-		googleAuthService = &GoogleAuthService{
-			userRepo: repository.NewUserRepository(database.DB),
+	googleAuthOnce.Do(func() {
+		if googleAuthService == nil {
+			googleAuthService = &GoogleAuthService{
+				userRepo: repository.NewUserRepository(database.DB),
+			}
 		}
-	}
+	})
 	return googleAuthService
 }
 

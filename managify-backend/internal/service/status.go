@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/internal/repository"
 	"managify/models"
@@ -20,6 +21,7 @@ type StatusService struct {
 }
 
 var statusService *StatusService
+var statusOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -30,14 +32,16 @@ func init() {
 }
 
 func GetStatusService() *StatusService {
-	if statusService == nil {
-		statusService = &StatusService{
-			statusRepo:      repository.NewStatusRepository(database.DB),
-			createLog:       GetLogService().CreateLog,
-			isProjectValid:  GetProjectService().IsProjectValid,
-			isUserInProject: GetProjectService().IsUserInProject,
+	statusOnce.Do(func() {
+		if statusService == nil {
+			statusService = &StatusService{
+				statusRepo:      repository.NewStatusRepository(database.DB),
+				createLog:       GetLogService().CreateLog,
+				isProjectValid:  GetProjectService().IsProjectValid,
+				isUserInProject: GetProjectService().IsUserInProject,
+			}
 		}
-	}
+	})
 	return statusService
 }
 

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/internal/repository"
 
@@ -21,6 +22,7 @@ type ProjectService struct {
 }
 
 var projectService *ProjectService
+var projectOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -31,14 +33,16 @@ func init() {
 }
 
 func GetProjectService() *ProjectService {
-	if projectService == nil {
-		projectService = &ProjectService{
-			projectRepo: repository.NewProjectRepository(database.DB),
-			userRepo:    repository.NewUserRepository(database.DB),
-			subRepo:     repository.NewSubscriptionRepository(database.DB),
-			createLog:   GetLogService().CreateLog,
+	projectOnce.Do(func() {
+		if projectService == nil {
+			projectService = &ProjectService{
+				projectRepo: repository.NewProjectRepository(database.DB),
+				userRepo:    repository.NewUserRepository(database.DB),
+				subRepo:     repository.NewSubscriptionRepository(database.DB),
+				createLog:   GetLogService().CreateLog,
+			}
 		}
-	}
+	})
 	return projectService
 }
 

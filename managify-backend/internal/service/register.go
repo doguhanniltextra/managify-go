@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/dto/request"
 	"managify/dto/response"
@@ -29,6 +30,7 @@ type UserService struct {
 }
 
 var userService *UserService
+var userOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -39,15 +41,17 @@ func init() {
 }
 
 func GetUserService() *UserService {
-	if userService == nil {
-		cfg := config.LoadConfig()
-		userService = &UserService{
-			userRepo:        repository.NewUserRepository(database.DB),
-			notifier:        notification.NewSMTPProvider(cfg),
-			CreateToken:     middleware.CreateToken,
-			EncryptPassword: encryptPassword,
+	userOnce.Do(func() {
+		if userService == nil {
+			cfg := config.LoadConfig()
+			userService = &UserService{
+				userRepo:        repository.NewUserRepository(database.DB),
+				notifier:        notification.NewSMTPProvider(cfg),
+				CreateToken:     middleware.CreateToken,
+				EncryptPassword: encryptPassword,
+			}
 		}
-	}
+	})
 	return userService
 }
 

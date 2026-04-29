@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/internal/repository"
 
@@ -21,6 +22,7 @@ type IssueService struct {
 }
 
 var issueService *IssueService
+var issueOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -31,14 +33,16 @@ func init() {
 }
 
 func GetIssueService() *IssueService {
-	if issueService == nil {
-		issueService = &IssueService{
-			issueRepo:       repository.NewIssueRepository(database.DB),
-			createLog:       GetLogService().CreateLog,
-			isProjectValid:  GetProjectService().IsProjectValid,
-			isUserInProject: GetProjectService().IsUserInProject,
+	issueOnce.Do(func() {
+		if issueService == nil {
+			issueService = &IssueService{
+				issueRepo:       repository.NewIssueRepository(database.DB),
+				createLog:       GetLogService().CreateLog,
+				isProjectValid:  GetProjectService().IsProjectValid,
+				isUserInProject: GetProjectService().IsUserInProject,
+			}
 		}
-	}
+	})
 	return issueService
 }
 

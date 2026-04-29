@@ -4,6 +4,7 @@ import (
 	"context"
 	"golang.org/x/crypto/bcrypt"
 	"managify/dto/request"
+	"managify/internal/notification"
 	"managify/internal/repository"
 	"managify/models"
 	"testing"
@@ -53,12 +54,35 @@ func (m *mockUserRepository) FindByID(ctx context.Context, id interface{}) (*mod
 	return nil, args.Error(1)
 }
 
+type mockNotificationProvider struct {
+	notification.Provider
+	mock.Mock
+}
+
+func (m *mockNotificationProvider) SendVerificationEmail(email, token string) error {
+	args := m.Called(email, token)
+	return args.Error(0)
+}
+
+func (m *mockNotificationProvider) SendInviteEmail(email, projectName, inviteToken string) error {
+	args := m.Called(email, projectName, inviteToken)
+	return args.Error(0)
+}
+
+func (m *mockNotificationProvider) SendPasswordResetEmail(email, token string) error {
+	args := m.Called(email, token)
+	return args.Error(0)
+}
+
 func TestUserService_CreateUser(t *testing.T) {
 	mockRepo := new(mockUserRepository)
+	mockNotifier := new(mockNotificationProvider)
 	mockRepo.On("InsertOne", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+	mockNotifier.On("SendVerificationEmail", mock.Anything, mock.Anything).Return(nil)
 
 	svc := &UserService{
 		userRepo: mockRepo,
+		notifier: mockNotifier,
 		EncryptPassword: func(pw []byte) ([]byte, error) {
 			return []byte("hashed_" + string(pw)), nil
 		},
@@ -72,7 +96,7 @@ func TestUserService_CreateUser(t *testing.T) {
 		Password: "password123",
 	}
 
-	createdUser, token, err := svc.CreateUser(user)
+	createdUser, token, err := svc.CreateUser(context.Background(), user)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, createdUser)
@@ -102,7 +126,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	verifiedUser, err := svc.VerifyEmail(validToken)
+	verifiedUser, err := svc.VerifyEmail(context.Background(), validToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, verifiedUser)
 	assert.True(t, verifiedUser.IsVerified)
@@ -138,7 +162,7 @@ func TestUserService_Login(t *testing.T) {
 		Password: password,
 	}
 
-	resp, err := svc.Login(req)
+	resp, err := svc.Login(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, mockUser.Email, resp.Email)
@@ -160,11 +184,11 @@ func TestUserService_IsUserValid(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	isValid, err := svc.IsUserValid(validId)
+	isValid, err := svc.IsUserValid(context.Background(), validId)
 	assert.NoError(t, err)
 	assert.True(t, isValid)
 
-	isValid, err = svc.IsUserValid(invalidId)
+	isValid, err = svc.IsUserValid(context.Background(), invalidId)
 	assert.NoError(t, err)
 	assert.False(t, isValid)
 
@@ -183,12 +207,12 @@ func TestUserService_GetUserByGivenId(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	user, err := svc.GetUserByGivenId(validId.Hex())
+	user, err := svc.GetUserByGivenId(context.Background(), validId.Hex())
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.Equal(t, validId, user.ID)
 
-	_, err = svc.GetUserByGivenId("invalid-hex")
+	_, err = svc.GetUserByGivenId(context.Background(), "invalid-hex")
 	assert.Error(t, err)
 
 	mockRepo.AssertExpectations(t)

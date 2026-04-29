@@ -43,7 +43,7 @@ func TestRoleService_DeleteRole(t *testing.T) {
 		roleRepo: mockRoleRepo,
 	}
 
-	err := svc.DeleteRole(roleId)
+	err := svc.DeleteRole(context.Background(), roleId)
 	assert.NoError(t, err)
 
 	mockRoleRepo.AssertExpectations(t)
@@ -71,10 +71,10 @@ func TestRoleService_AddRole(t *testing.T) {
 
 	svc := &RoleService{
 		roleRepo: mockRoleRepo,
-		createLog: func(pl *models.ProjectLog) error { return nil },
+		createLog: func(ctx context.Context, pl *models.ProjectLog) error { return nil },
 	}
 
-	role, err := svc.AddRole(userId, projectId, "Admin")
+	role, err := svc.AddRole(context.Background(), userId, projectId, "Admin")
 	assert.NoError(t, err)
 	assert.NotNil(t, role)
 	assert.Equal(t, "Admin", role.RoleName)
@@ -94,7 +94,7 @@ func TestProjectService_IsOwner(t *testing.T) {
 
 	mockProjectRepo.On("VerifyProjectOwner", mock.Anything, projectId, ownerId).Return(true, nil)
 
-	isOwner, err := svc.IsOwner(ownerId, projectId)
+	isOwner, err := svc.IsOwner(context.Background(), ownerId, projectId)
 	assert.NoError(t, err)
 	assert.True(t, isOwner)
 

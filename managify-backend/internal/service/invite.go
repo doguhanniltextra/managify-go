@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/dto/request"
 	"managify/internal/repository"
@@ -31,16 +32,19 @@ type InviteService struct {
 }
 
 var inviteService *InviteService
+var inviteOnce sync.Once
 
 func GetInviteService() *InviteService {
-	if inviteService == nil {
-		inviteService = &InviteService{
-			inviteRepo:  repository.NewProjectInviteRepository(database.DB),
-			userRepo:    repository.NewUserRepository(database.DB),
-			projectRepo: repository.NewProjectRepository(database.DB),
-			createLog:   GetLogService().CreateLog,
+	inviteOnce.Do(func() {
+		if inviteService == nil {
+			inviteService = &InviteService{
+				inviteRepo:  repository.NewProjectInviteRepository(database.DB),
+				userRepo:    repository.NewUserRepository(database.DB),
+				projectRepo: repository.NewProjectRepository(database.DB),
+				createLog:   GetLogService().CreateLog,
+			}
 		}
-	}
+	})
 	return inviteService
 }
 

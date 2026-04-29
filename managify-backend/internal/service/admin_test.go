@@ -37,7 +37,7 @@ func TestUserService_GetAllUsers(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	result, err := svc.GetAllUsers()
+	result, err := svc.GetAllUsers(context.Background())
 	assert.NoError(t, err)
 	assert.Len(t, result, 2)
 
@@ -59,7 +59,7 @@ func TestUserService_GetUserById_Admin(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	resultUser, err := svc.GetUserById(validId.Hex())
+	resultUser, err := svc.GetUserById(context.Background(), validId.Hex())
 	assert.NoError(t, err)
 	assert.NotNil(t, resultUser)
 	assert.Equal(t, validId, resultUser.ID)
@@ -79,7 +79,7 @@ func TestUserService_DeleteUserById(t *testing.T) {
 		userRepo: mockRepo,
 	}
 
-	deletedCount, err := svc.DeleteUserById(validId.Hex())
+	deletedCount, err := svc.DeleteUserById(context.Background(), validId.Hex())
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), deletedCount)
 

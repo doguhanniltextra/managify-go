@@ -28,7 +28,7 @@ func TestSubscriptionService_GetByUserId(t *testing.T) {
 
 	mockRepo.On("FindByUserID", mock.Anything, userId).Return(sub, nil)
 
-	res, err := svc.GetByUserId(userId.Hex())
+	res, err := svc.GetByUserId(context.Background(), userId.Hex())
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, sub.ID, res.ID)
@@ -49,7 +49,7 @@ func TestSubscriptionService_CreateSubscription(t *testing.T) {
 
 	mockRepo.On("InsertOne", mock.Anything, mock.AnythingOfType("*models.Subscription")).Return(nil)
 
-	res, err := svc.CreateSubscription(sub)
+	res, err := svc.CreateSubscription(context.Background(), sub)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.False(t, res.ID.IsZero())

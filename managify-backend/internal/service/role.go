@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"managify/database"
 	"managify/internal/repository"
 
@@ -19,6 +20,7 @@ type RoleService struct {
 }
 
 var roleService *RoleService
+var roleOnce sync.Once
 
 func init() {
 	log.SetFormatter(&logrus.TextFormatter{
@@ -29,12 +31,14 @@ func init() {
 }
 
 func GetRoleService() *RoleService {
-	if roleService == nil {
-		roleService = &RoleService{
-			roleRepo:  repository.NewRoleRepository(database.DB),
-			createLog: GetLogService().CreateLog,
+	roleOnce.Do(func() {
+		if roleService == nil {
+			roleService = &RoleService{
+				roleRepo:  repository.NewRoleRepository(database.DB),
+				createLog: GetLogService().CreateLog,
+			}
 		}
-	}
+	})
 	return roleService
 }
 

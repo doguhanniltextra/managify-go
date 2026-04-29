@@ -61,9 +61,9 @@ func TestIssueService_CreateIssue(t *testing.T) {
 
 	svc := &IssueService{
 		issueRepo:       mockIssueRepo,
-		createLog:       func(pl *models.ProjectLog) error { return nil },
-		isProjectValid:  func(pid primitive.ObjectID) (bool, error) { return true, nil },
-		isUserInProject: func(uid, pid primitive.ObjectID) (bool, error) { return true, nil },
+		createLog:       func(ctx context.Context, pl *models.ProjectLog) error { return nil },
+		isProjectValid:  func(ctx context.Context, pid primitive.ObjectID) (bool, error) { return true, nil },
+		isUserInProject: func(ctx context.Context, uid, pid primitive.ObjectID) (bool, error) { return true, nil },
 	}
 
 	userId := primitive.NewObjectID()
@@ -76,7 +76,7 @@ func TestIssueService_CreateIssue(t *testing.T) {
 
 	mockIssueRepo.On("InsertOne", mock.Anything, mock.AnythingOfType("*models.Issue")).Return(nil)
 
-	created, err := svc.CreateIssue(issue, userId)
+	created, err := svc.CreateIssue(context.Background(), issue, userId)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.Equal(t, issue.Title, created.Title)
@@ -89,7 +89,7 @@ func TestIssueService_DeleteIssue(t *testing.T) {
 
 	svc := &IssueService{
 		issueRepo:       mockIssueRepo,
-		isUserInProject: func(uid, pid primitive.ObjectID) (bool, error) { return true, nil },
+		isUserInProject: func(ctx context.Context, uid, pid primitive.ObjectID) (bool, error) { return true, nil },
 	}
 
 	userId := primitive.NewObjectID()
@@ -104,7 +104,7 @@ func TestIssueService_DeleteIssue(t *testing.T) {
 	mockIssueRepo.On("FindByID", mock.Anything, issueId).Return(existingIssue, nil)
 	mockIssueRepo.On("DeleteByID", mock.Anything, issueId).Return(int64(1), nil)
 
-	err := svc.DeleteIssue(issueId, userId)
+	err := svc.DeleteIssue(context.Background(), issueId, userId)
 	assert.NoError(t, err)
 
 	mockIssueRepo.AssertExpectations(t)
