@@ -2,14 +2,17 @@ package middleware
 
 import (
 	"managify/models"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 )
 
-var secretKey = []byte(os.Getenv("SECRET_KEY"))
+var secretKey []byte
+
+func InitJWTMiddleware(key string) {
+	secretKey = []byte(key)
+}
 
 func CreateToken(user *models.User) (string, error) {
 

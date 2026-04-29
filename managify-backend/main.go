@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"managify/constant"
 	"managify/database"
+	"managify/internal/config"
 	"managify/internal/middleware"
 	"managify/internal/router"
 	"os"
@@ -37,6 +38,13 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		logrus.Warn("No .env file found, relying on environment variables")
 	}
+
+	cfg := config.LoadConfig()
+	if err := cfg.Validate(); err != nil {
+		logrus.Fatalf("Critical Error: Configuration validation failed: %v", err)
+	}
+
+	middleware.InitJWTMiddleware(cfg.SecretKey)
 
 	if err := database.Connect(); err != nil {
 		logrus.Fatalf("Critical Error: Database connection failed after retries: %v", err)
