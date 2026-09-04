@@ -9,7 +9,6 @@ import (
 	"managify/internal/repository"
 	"managify/models"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -20,20 +19,10 @@ type SubscriptionService struct {
 var subscriptionService *SubscriptionService
 var subscriptionOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetSubscriptionService() *SubscriptionService {
 	subscriptionOnce.Do(func() {
-		if subscriptionService == nil {
-			subscriptionService = &SubscriptionService{
-				subscriptionRepo: repository.NewSubscriptionRepository(database.DB),
-			}
+		subscriptionService = &SubscriptionService{
+			subscriptionRepo: repository.NewSubscriptionRepository(database.DB),
 		}
 	})
 	return subscriptionService

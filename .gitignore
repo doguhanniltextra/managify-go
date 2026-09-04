@@ -8,6 +8,7 @@
 *.exe
 *.dll
 managify-go
+managify
 main
 
 # Terraform binary'leri
@@ -22,3 +23,5 @@ hack/
 agent/
 
 actions-runner/
+# AI Agent tasks and configs
+.agents/

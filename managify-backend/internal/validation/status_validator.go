@@ -4,17 +4,9 @@ import (
 	"managify/models"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
 )
 
 func CreateStatusValidator(c *fiber.Ctx) error {
-	log := logrus.New()
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.InfoLevel)
-
 	var status models.Status
 
 	if err := c.BodyParser(&status); err != nil {

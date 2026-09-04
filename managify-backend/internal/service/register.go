@@ -17,7 +17,6 @@ import (
 
 	"managify/models"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,24 +31,14 @@ type UserService struct {
 var userService *UserService
 var userOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetUserService() *UserService {
 	userOnce.Do(func() {
-		if userService == nil {
-			cfg := config.LoadConfig()
-			userService = &UserService{
-				userRepo:        repository.NewUserRepository(database.DB),
-				notifier:        notification.NewSMTPProvider(cfg),
-				CreateToken:     middleware.CreateToken,
-				EncryptPassword: encryptPassword,
-			}
+		cfg := config.LoadConfig()
+		userService = &UserService{
+			userRepo:        repository.NewUserRepository(database.DB),
+			notifier:        notification.NewSMTPProvider(cfg),
+			CreateToken:     middleware.CreateToken,
+			EncryptPassword: encryptPassword,
 		}
 	})
 	return userService
@@ -69,7 +58,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*model
 
 	hashedPassword, err := s.EncryptPassword([]byte(user.Password))
 	if err != nil {
-		logrus.Errorf("Password encryption failed: %v", err)
+		log.Errorf("Password encryption failed: %v", err)
 		return nil, "", err
 	}
 	user.Password = string(hashedPassword)
@@ -84,13 +73,13 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*model
 
 	err = s.userRepo.InsertOne(ctx, user)
 	if err != nil {
-		logrus.Errorf("Failed to insert user into DB: %v", err)
+		log.Errorf("Failed to insert user into DB: %v", err)
 		return nil, "", err
 	}
 
 	tokenString, err := s.CreateToken(user)
 	if err != nil {
-		logrus.Errorf("Failed to create JWT token: %v", err)
+		log.Errorf("Failed to create JWT token: %v", err)
 		return nil, "", err
 	}
 
@@ -123,7 +112,7 @@ func (s *UserService) Login(ctx context.Context, req *request.UserLoginRequest) 
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil || user == nil {
-		logrus.Warnf("User not found: %s", req.Email)
+		log.Warnf("User not found: %s", req.Email)
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
@@ -146,7 +135,7 @@ func (s *UserService) Login(ctx context.Context, req *request.UserLoginRequest) 
 		go s.notifier.SendVerificationEmail(user.Email, user.VerificationToken)
 	}
 
-	logrus.Infof("User logged in successfully: %s", req.Email)
+	log.Infof("User logged in successfully: %s", req.Email)
 	return resp, nil
 }
 
@@ -154,7 +143,7 @@ func (s *UserService) IsUserValid(ctx context.Context, userId primitive.ObjectID
 
 	user, err := s.userRepo.FindByID(ctx, userId)
 	if err != nil {
-		logrus.WithError(err).Error("failed to fetch user")
+		log.WithError(err).Error("failed to fetch user")
 		return false, err
 	}
 	if user == nil {

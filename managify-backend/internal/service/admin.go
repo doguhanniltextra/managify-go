@@ -5,17 +5,9 @@ import (
 	"fmt"
 	"managify/models"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
 
 func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	users, err := s.userRepo.FindAllUsers(ctx)

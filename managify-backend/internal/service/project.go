@@ -10,7 +10,6 @@ import (
 	"managify/models"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -23,14 +22,6 @@ type ProjectService struct {
 
 var projectService *ProjectService
 var projectOnce sync.Once
-
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
 
 func GetProjectService() *ProjectService {
 	projectOnce.Do(func() {

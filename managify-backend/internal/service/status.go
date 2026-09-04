@@ -9,7 +9,6 @@ import (
 	"managify/models"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -23,23 +22,13 @@ type StatusService struct {
 var statusService *StatusService
 var statusOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetStatusService() *StatusService {
 	statusOnce.Do(func() {
-		if statusService == nil {
-			statusService = &StatusService{
-				statusRepo:      repository.NewStatusRepository(database.DB),
-				createLog:       GetLogService().CreateLog,
-				isProjectValid:  GetProjectService().IsProjectValid,
-				isUserInProject: GetProjectService().IsUserInProject,
-			}
+		statusService = &StatusService{
+			statusRepo:      repository.NewStatusRepository(database.DB),
+			createLog:       GetLogService().CreateLog,
+			isProjectValid:  GetProjectService().IsProjectValid,
+			isUserInProject: GetProjectService().IsUserInProject,
 		}
 	})
 	return statusService

@@ -10,7 +10,6 @@ import (
 	"managify/models"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -24,23 +23,13 @@ type IssueService struct {
 var issueService *IssueService
 var issueOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetIssueService() *IssueService {
 	issueOnce.Do(func() {
-		if issueService == nil {
-			issueService = &IssueService{
-				issueRepo:       repository.NewIssueRepository(database.DB),
-				createLog:       GetLogService().CreateLog,
-				isProjectValid:  GetProjectService().IsProjectValid,
-				isUserInProject: GetProjectService().IsUserInProject,
-			}
+		issueService = &IssueService{
+			issueRepo:       repository.NewIssueRepository(database.DB),
+			createLog:       GetLogService().CreateLog,
+			isProjectValid:  GetProjectService().IsProjectValid,
+			isUserInProject: GetProjectService().IsUserInProject,
 		}
 	})
 	return issueService

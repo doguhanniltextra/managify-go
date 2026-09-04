@@ -7,7 +7,6 @@ import (
 	"managify/internal/repository"
 	"managify/models"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -18,19 +17,9 @@ type LogService struct {
 var logService *LogService
 var logOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetLogService() *LogService {
 	logOnce.Do(func() {
-		if logService == nil {
-			logService = &LogService{Collection: "logs"}
-		}
+		logService = &LogService{Collection: "logs"}
 	})
 	return logService
 }

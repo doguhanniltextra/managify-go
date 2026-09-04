@@ -10,19 +10,8 @@ import (
 	"managify/models"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-var log = logrus.New()
-
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
 
 type InviteService struct {
 	inviteRepo  repository.ProjectInviteRepository
@@ -36,14 +25,12 @@ var inviteOnce sync.Once
 
 func GetInviteService() *InviteService {
 	inviteOnce.Do(func() {
-		if inviteService == nil {
 			inviteService = &InviteService{
 				inviteRepo:  repository.NewProjectInviteRepository(database.DB),
 				userRepo:    repository.NewUserRepository(database.DB),
 				projectRepo: repository.NewProjectRepository(database.DB),
 				createLog:   GetLogService().CreateLog,
 			}
-		}
 	})
 	return inviteService
 }

@@ -10,7 +10,6 @@ import (
 	"managify/models"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -22,21 +21,11 @@ type RoleService struct {
 var roleService *RoleService
 var roleOnce sync.Once
 
-func init() {
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.DebugLevel)
-}
-
 func GetRoleService() *RoleService {
 	roleOnce.Do(func() {
-		if roleService == nil {
-			roleService = &RoleService{
-				roleRepo:  repository.NewRoleRepository(database.DB),
-				createLog: GetLogService().CreateLog,
-			}
+		roleService = &RoleService{
+			roleRepo:  repository.NewRoleRepository(database.DB),
+			createLog: GetLogService().CreateLog,
 		}
 	})
 	return roleService

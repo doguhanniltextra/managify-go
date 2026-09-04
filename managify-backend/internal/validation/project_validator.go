@@ -8,19 +8,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateProjectValidator(c *fiber.Ctx) error {
-	log := logrus.New()
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
-	log.SetLevel(logrus.InfoLevel)
-
 	var project models.Project
 
 	// Body parse
