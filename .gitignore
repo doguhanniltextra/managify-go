@@ -25,3 +25,4 @@ agent/
 actions-runner/
 # AI Agent tasks and configs
 .agents/
+.vscode/
