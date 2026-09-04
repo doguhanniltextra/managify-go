@@ -15,6 +15,7 @@ func NewBaseRepository[T any](db *mongo.Database, collectionName string) *BaseRe
 		Collection: db.Collection(collectionName),
 	}
 }
+
 func (r *BaseRepository[T]) InsertOne(ctx context.Context, document *T) error {
 	_, err := r.Collection.InsertOne(ctx, document)
 	return err
