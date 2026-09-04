@@ -24,7 +24,7 @@ on:
 
 jobs:
   detect_and_trigger:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
