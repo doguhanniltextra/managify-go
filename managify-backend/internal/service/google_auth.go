@@ -47,8 +47,8 @@ func (s *GoogleAuthService) GetGoogleAuthURL() string {
 	params.Set("redirect_uri", redirectURI)
 	params.Set("response_type", "code")
 	params.Set("scope", "openid email profile")
-	params.Set("access_type", "offline") // refresh_token almak için
-	params.Set("prompt", "consent")      // her seferinde izin ekranı göster (refresh_token garantisi)
+	params.Set("access_type", "offline")
+	params.Set("prompt", "consent")
 
 	return "https://accounts.google.com/o/oauth2/v2/auth?" + params.Encode()
 }
@@ -161,21 +161,17 @@ func (s *GoogleAuthService) getUserInfo(ctx context.Context, accessToken string)
 
 func (s *GoogleAuthService) findOrCreateGoogleUser(ctx context.Context, info *response.GoogleUserInfo) (*models.User, error) {
 
-	// 1. Repository üzerinden e-posta ile mevcut kullanıcıyı ara
 	existingUser, err := s.userRepo.FindByEmail(ctx, info.Email)
 
 	if err == nil && existingUser != nil {
-		// Kullanıcı zaten var — google_id'yi güncelle (hesap bağlama)
 		updateErr := s.userRepo.LinkGoogleID(ctx, existingUser.ID, info.Sub)
 		if updateErr != nil {
 			log.WithError(updateErr).Warn("Failed to link Google ID to existing user")
-			// Link başarısız olsa bile login'e devam et
 		}
 		existingUser.GoogleID = info.Sub
 		return existingUser, nil
 	}
 
-	// 2. Yoksa yeni kullanıcı oluştur
 	newUser := &models.User{
 		ID:           primitive.NewObjectID(),
 		FullName:     info.Name,

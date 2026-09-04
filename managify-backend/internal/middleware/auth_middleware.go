@@ -17,7 +17,6 @@ func AuthMiddleware(c *fiber.Ctx) error {
 		})
 	}
 
-	// Bearer kısmını ayır
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenStr == authHeader {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

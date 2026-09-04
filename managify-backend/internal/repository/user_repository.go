@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// UserRepository, User veri işlemleri sözleşmesidir.
+// UserRepository defines the contract for user data operations.
 type UserRepository interface {
 	FindOne(ctx context.Context, filter interface{}) (*models.User, error)
 	InsertOne(ctx context.Context, document *models.User) error
