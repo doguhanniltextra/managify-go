@@ -2,3 +2,4 @@ task/
 .env
 .agents/
 .agent/
+.vscode/
