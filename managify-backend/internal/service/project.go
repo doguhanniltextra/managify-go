@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"managify/database"
+	"managify/internal/domain"
 	"managify/internal/repository"
 
 	"managify/models"
@@ -25,13 +26,11 @@ var projectOnce sync.Once
 
 func GetProjectService() *ProjectService {
 	projectOnce.Do(func() {
-		if projectService == nil {
-			projectService = &ProjectService{
-				projectRepo: repository.NewProjectRepository(database.DB),
-				userRepo:    repository.NewUserRepository(database.DB),
-				subRepo:     repository.NewSubscriptionRepository(database.DB),
-				createLog:   GetLogService().CreateLog,
-			}
+		projectService = &ProjectService{
+			projectRepo: repository.NewProjectRepository(database.DB),
+			userRepo:    repository.NewUserRepository(database.DB),
+			subRepo:     repository.NewSubscriptionRepository(database.DB),
+			createLog:   GetLogService().CreateLog,
 		}
 	})
 	return projectService
@@ -48,11 +47,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, project *models.Proj
 		return nil, fmt.Errorf("failed to check subscription: %w", err)
 	}
 	if subscription == nil || !subscription.IsValid {
-		return nil, fmt.Errorf("no active subscription found")
+		return nil, fmt.Errorf("%w: no active subscription found", domain.ErrForbidden)
 	}
 
 	if subscription.PlanType == models.PlanBasic && user.ProjectSize >= 3 {
-		return nil, fmt.Errorf("plan limit reached: BASIC users can only create up to 3 projects")
+		return nil, fmt.Errorf("%w: plan limit reached: BASIC users can only create up to 3 projects", domain.ErrForbidden)
 	}
 
 	err = userRepo.IncrementProjectSize(ctx, user.ID, 1)
@@ -109,10 +108,10 @@ func (s *ProjectService) DeleteProjectById(ctx context.Context, objID primitive.
 		projectValid, _ := projectRepo.VerifyProject(ctx, objID)
 		if projectValid && !user.IsAdmin {
 			log.Warnf("Unauthorized delete attempt by user %s on project %s", user.ID.Hex(), objID.Hex())
-			return fmt.Errorf("unauthorized: only owner or admin can delete")
+			return fmt.Errorf("%w: unauthorized: only owner or admin can delete", domain.ErrForbidden)
 		} else if !projectValid {
 			log.Warnf("Project not found: %s", objID.Hex())
-			return fmt.Errorf("project not found")
+			return fmt.Errorf("%w: project not found", domain.ErrNotFound)
 		}
 	}
 
@@ -123,7 +122,10 @@ func (s *ProjectService) DeleteProjectById(ctx context.Context, objID primitive.
 	}
 
 	if project != nil {
-		s.reduceProjectSize(ctx, project.OwnerID)
+		if err := s.reduceProjectSize(ctx, project.OwnerID); err != nil {
+			log.WithError(err).Errorf("Failed to reduce project size for owner %s after deleting project %s", project.OwnerID.Hex(), objID.Hex())
+			return err
+		}
 	}
 
 	log.Infof("Project deleted successfully: %s, deletedCount=%d", objID.Hex(), deletedCount)
@@ -142,7 +144,7 @@ func (s *ProjectService) GetProject(ctx context.Context, projectID primitive.Obj
 	}
 	if project == nil {
 		log.Warnf("project not found or access denied for user %s", user.ID.Hex())
-		return nil, fmt.Errorf("project not found or access denied")
+		return nil, fmt.Errorf("%w: project not found or access denied", domain.ErrNotFound)
 	}
 
 	return project, nil
@@ -174,6 +176,10 @@ func (s *ProjectService) IsUserInProject(ctx context.Context, userID, projectID 
 
 func (s *ProjectService) GetProjectsByUserId(ctx context.Context, userIDHex string) ([]*models.Project, error) {
 	userObjID, err := primitive.ObjectIDFromHex(userIDHex)
+	if err != nil {
+		log.WithError(err).Warnf("invalid user ID hex: %s", userIDHex)
+		return nil, fmt.Errorf("%w: invalid user ID: %w", domain.ErrBadRequest, err)
+	}
 
 	projectRepo := s.projectRepo
 	projects, err := projectRepo.FindAllByUserID(ctx, userObjID)

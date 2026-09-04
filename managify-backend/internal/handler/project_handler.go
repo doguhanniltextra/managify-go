@@ -11,6 +11,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"managify/dto/response"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -44,9 +46,7 @@ func CreateProjectHandler(c *fiber.Ctx) error {
 
 	res, err := service.GetProjectService().CreateProject(c.UserContext(), &project, user)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": constant.ErrUnauthorized,
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -85,9 +85,7 @@ func DeleteProjectHandler(c *fiber.Ctx) error {
 
 	err = service.GetProjectService().DeleteProjectById(c.UserContext(), objID, user)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": constant.ErrUnauthorized,
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -95,14 +93,6 @@ func DeleteProjectHandler(c *fiber.Ctx) error {
 	})
 }
 
-type StatusWithIssues struct {
-	ID        primitive.ObjectID   `json:"id"`
-	ProjectID primitive.ObjectID   `json:"project_id"`
-	Name      string               `json:"name"`
-	CreatedAt time.Time            `json:"created_at"`
-	UpdatedAt time.Time            `json:"updated_at,omitempty"`
-	IssuesID  []primitive.ObjectID `bson:"issues" json:"issues_id"`
-}
 
 // @Summary Get a project by ID
 // @Description Retrieves a project by its ID, including its statuses and team members.
@@ -130,7 +120,7 @@ func GetProjectHandler(c *fiber.Ctx) error {
 
 	project, err := service.GetProjectService().GetProject(c.UserContext(), projectID, user)
 	if err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": constant.ErrForbidden})
+		return HandleServiceError(c, err)
 	}
 
 	var (
@@ -164,13 +154,13 @@ func GetProjectHandler(c *fiber.Ctx) error {
 		teamMembers = []models.User{}
 	}
 
-	var statusesWithIssues []StatusWithIssues
+	var statusesWithIssues []response.StatusWithIssues
 	for _, status := range statuses {
 		if _, err := service.GetIssueService().GetIssuesByStatusID(c.UserContext(), status.ID); err != nil {
 			fmt.Println(err)
 		}
 
-		statusesWithIssues = append(statusesWithIssues, StatusWithIssues{
+		statusesWithIssues = append(statusesWithIssues, response.StatusWithIssues{
 			ID:        status.ID,
 			ProjectID: status.ProjectID,
 			Name:      status.Name,

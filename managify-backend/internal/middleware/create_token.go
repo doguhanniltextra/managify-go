@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/sirupsen/logrus"
 )
 
 var secretKey []byte
@@ -15,12 +14,6 @@ func InitJWTMiddleware(key string) {
 }
 
 func CreateToken(user *models.User) (string, error) {
-
-	var log = logrus.New()
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-	})
 	mapClaims := jwt.MapClaims{
 		"id":       user.ID,
 		"name":     user.FullName,
@@ -32,11 +25,6 @@ func CreateToken(user *models.User) (string, error) {
 	}
 
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, mapClaims)
-
-	log.Info(claims)
-	log.Info(claims.Header)
-	log.Info(claims.Signature)
-
 	tokenString, err := claims.SignedString(secretKey)
 	if err != nil {
 		return "", err

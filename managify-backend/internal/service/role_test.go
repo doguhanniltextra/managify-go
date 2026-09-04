@@ -58,8 +58,13 @@ func TestRoleService_AddRole(t *testing.T) {
 
 	// override global project service for the test
 	originalProjectService := projectService
-	defer func() { projectService = originalProjectService }()
+	originalProjectOnce := projectOnce
+	defer func() {
+		projectService = originalProjectService
+		projectOnce = originalProjectOnce
+	}()
 
+	projectOnce.Do(func() {})
 	projectService = &ProjectService{
 		projectRepo: mockProjectRepo,
 	}

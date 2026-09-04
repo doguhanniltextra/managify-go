@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"managify/internal/domain"
 	"managify/models"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,7 +26,7 @@ func (s *UserService) GetUserById(ctx context.Context, id string) (*models.User,
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		log.WithError(err).Warnf("Invalid ObjectID format: %s", id)
-		return nil, fmt.Errorf("invalid id: %v", err)
+		return nil, fmt.Errorf("%w: invalid id: %v", domain.ErrBadRequest, err)
 	}
 
 	user, err := s.userRepo.FindByID(ctx, objID)
@@ -33,7 +34,7 @@ func (s *UserService) GetUserById(ctx context.Context, id string) (*models.User,
 		return nil, err
 	}
 	if user == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, fmt.Errorf("%w: user not found", domain.ErrNotFound)
 	}
 
 	user.Password = "" // clear it implicitly as previously we used projection
@@ -45,7 +46,7 @@ func (s *UserService) DeleteUserById(ctx context.Context, id string) (int64, err
 
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return 0, fmt.Errorf("invalid ObjectID format: %v", err)
+		return 0, fmt.Errorf("%w: invalid ObjectID format: %v", domain.ErrBadRequest, err)
 	}
 
 	deletedCount, err := s.userRepo.DeleteByID(ctx, objID)
@@ -54,7 +55,7 @@ func (s *UserService) DeleteUserById(ctx context.Context, id string) (int64, err
 	}
 
 	if deletedCount == 0 {
-		return 0, fmt.Errorf("user not found")
+		return 0, fmt.Errorf("%w: user not found", domain.ErrNotFound)
 	}
 
 	return deletedCount, nil

@@ -1,3 +1,4 @@
 task/
 .env
 .agents/
+.agent/

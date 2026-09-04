@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"managify/database"
+	"managify/internal/domain"
 	"managify/internal/repository"
 
 	"managify/models"
@@ -43,7 +44,7 @@ func (s *IssueService) CreateIssue(ctx context.Context, issue *models.Issue, use
 		return nil, err
 	}
 	if !isProjectValid {
-		return nil, fmt.Errorf("project is not valid")
+		return nil, fmt.Errorf("%w: project is not valid", domain.ErrNotFound)
 	}
 
 	// User validation
@@ -52,7 +53,7 @@ func (s *IssueService) CreateIssue(ctx context.Context, issue *models.Issue, use
 		return nil, err
 	}
 	if !isUserInProject {
-		return nil, fmt.Errorf("user is not in project")
+		return nil, fmt.Errorf("%w: user is not in project", domain.ErrForbidden)
 	}
 
 	issue.ID = primitive.NewObjectID()
@@ -86,7 +87,7 @@ func (s *IssueService) DeleteIssue(ctx context.Context, issueID, userID primitiv
 		return err
 	}
 	if issue == nil {
-		return fmt.Errorf("issue not found")
+		return fmt.Errorf("%w: issue not found", domain.ErrNotFound)
 	}
 
 	isUserInProject, err := s.isUserInProject(ctx, userID, issue.ProjectID)
@@ -94,7 +95,7 @@ func (s *IssueService) DeleteIssue(ctx context.Context, issueID, userID primitiv
 		return err
 	}
 	if !isUserInProject {
-		return fmt.Errorf("user is not allowed to delete this issue")
+		return fmt.Errorf("%w: user is not allowed to delete this issue", domain.ErrForbidden)
 	}
 
 	_, err = issueRepo.DeleteByID(ctx, issueID)

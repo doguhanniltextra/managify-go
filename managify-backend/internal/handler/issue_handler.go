@@ -81,9 +81,7 @@ func CreateIssueHandler(c *fiber.Ctx) error {
 
 	res, err := service.GetIssueService().CreateIssue(c.UserContext(), &issue, user.ID)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": constant.ErrUnauthorized,
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -120,9 +118,7 @@ func DeleteIssueHandler(c *fiber.Ctx) error {
 
 	err = service.GetIssueService().DeleteIssue(c.UserContext(), issueOID, user.ID)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": constant.ErrUnauthorized,
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

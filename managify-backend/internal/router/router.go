@@ -52,11 +52,11 @@ func RouterUser(app *fiber.App) {
 func RouterAdmin(app *fiber.App) {
 	api := app.Group(routes.AdminBase, middleware.AuthMiddleware, middleware.AdminMiddleware)
 
-	api.Get(routes.AdminGetUsers, handler.GetUsersHandler)
-	api.Get(routes.AdminGetUser, handler.GetUserById)
-	api.Get(routes.AdminGetProjects, handler.GetProjectsHandler)
-	api.Get(routes.AdminGetRoles, handler.GetRolesHandler)
-	api.Delete(routes.AdminDelete, handler.DeleteUserById)
+	api.Get(routes.AdminUsers, handler.GetUsersHandler)
+	api.Get(routes.AdminUser, handler.GetUserById)
+	api.Get(routes.AdminProjects, handler.GetProjectsHandler)
+	api.Get(routes.AdminRoles, handler.GetRolesHandler)
+	api.Delete(routes.AdminUser, handler.DeleteUserById)
 }
 
 func RouterProject(app *fiber.App) {

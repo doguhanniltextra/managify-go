@@ -26,16 +26,13 @@ func GetUserById(c *fiber.Ctx) error {
 
 	if id == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": constant.ErrNotFound,
+			"message": constant.ErrBadRequest,
 		})
 	}
 
 	user, err := service.GetUserService().GetUserById(c.UserContext(), id)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": constant.ErrInternalServer,
-			"error":   err.Error(),
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -54,10 +51,7 @@ func DeleteUserById(c *fiber.Ctx) error {
 	}
 	res, err := service.GetUserService().DeleteUserById(c.UserContext(), id)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": constant.ErrInternalServer,
-			"error":   err.Error(),
-		})
+		return HandleServiceError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
