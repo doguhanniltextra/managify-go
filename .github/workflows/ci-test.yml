@@ -1,11 +1,6 @@
-name: CI - Test & Lint
-
+name: CI - PR Quality Gate
+ 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'managify-backend/**'
-      - '.github/workflows/ci-test.yml'
   pull_request:
     branches: [master]
     paths:

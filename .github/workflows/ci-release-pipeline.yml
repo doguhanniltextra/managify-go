@@ -11,9 +11,7 @@ on:
     paths:
       - 'managify-backend/**'
       - '.github/workflows/**'
-    # Ignore version bump commits to prevent infinite loop
-    paths-ignore:
-      - VERSION.md
+      - '!VERSION.md'
 
 jobs:
   # Gate: only proceed if tests pass
