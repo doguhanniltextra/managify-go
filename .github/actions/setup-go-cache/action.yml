@@ -1,0 +1,25 @@
+name: 'Setup Go with Cache'
+description: 'Sets up Go environment with module and build caching'
+
+inputs:
+  go-version-file:
+    description: 'Path to go.mod file'
+    required: false
+    default: 'managify-backend/go.mod'
+  working-directory:
+    description: 'Working directory for go dependencies'
+    required: false
+    default: 'managify-backend'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.go-version-file }}
+        # cache: false on self-hosted runners — GitHub's cache service
+        # is not available by default on self-hosted, so we skip it to
+        # prevent silent hangs. Enable when using a cache proxy or
+        # GitHub-hosted runners.
+        cache: false

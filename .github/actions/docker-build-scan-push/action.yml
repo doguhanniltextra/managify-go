@@ -1,0 +1,53 @@
+name: 'Docker Build, Scan & Push'
+description: 'Builds Docker image, scans with Trivy, and pushes to Docker registry'
+
+inputs:
+  dockerhub-username:
+    description: 'DockerHub username'
+    required: true
+  dockerhub-token:
+    description: 'DockerHub token/password'
+    required: true
+  image-name:
+    description: 'Docker repository name'
+    required: false
+    default: 'managify-backend'
+  context:
+    description: 'Docker build context'
+    required: false
+    default: './managify-backend'
+  file:
+    description: 'Dockerfile path'
+    required: false
+    default: './managify-backend/Dockerfile'
+  tags:
+    description: 'Image tags list (newline-separated)'
+    required: true
+  push:
+    description: 'Whether to push to registry'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      if: ${{ inputs.push == 'true' }}
+      uses: docker/login-action@v3
+      with:
+        username: ${{ inputs.dockerhub-username }}
+        password: ${{ inputs.dockerhub-token }}
+
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        push: ${{ inputs.push }}
+        tags: ${{ inputs.tags }}
+        platforms: linux/amd64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
