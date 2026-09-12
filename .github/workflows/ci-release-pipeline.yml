@@ -156,3 +156,24 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/managify-backend:v${{ needs.bump-and-release.outputs.new_version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/managify-backend:${{ github.sha }}
           platforms: linux/amd64
+
+  deploy-render:
+    name: Deploy to Render.com
+    needs: docker-publish
+    runs-on: self-hosted
+    steps:
+      - name: Trigger Render Deploy Hook
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "::warning ::RENDER_DEPLOY_HOOK_URL secret is not configured. Skipping Render deployment."
+            exit 0
+          fi
+          echo "Triggering deployment on Render.com..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Successfully triggered Render deployment! (HTTP $HTTP_STATUS)"
+          else
+            echo "::error ::Failed to trigger Render deployment! HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
+

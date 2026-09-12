@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: managify-backend
+    runtime: docker
+    dockerfilePath: ./managify-backend/Dockerfile
+    dockerContext: ./managify-backend
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB
+        value: managify
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SWAGGER
+        value: "true"
+      - key: METRICS
+        value: "false"

@@ -84,6 +84,9 @@ func main() {
 	// Listen from a different goroutine
 	go func() {
 		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
 		addr := fmt.Sprintf(":%s", port)
 		logrus.Infof("Starting server on %s", addr)
 		if err := app.Listen(addr); err != nil {
