@@ -1,0 +1,66 @@
+name: CI - PR Quality Gate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'managify-backend/**'
+      - '.github/workflows/ci-pr-check.yml'
+      - '.github/actions/**'
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: GolangCI-Lint
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go-cache
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+          working-directory: managify-backend
+          args: --timeout=5m
+
+  test:
+    name: Unit Tests & Coverage
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go-cache
+
+      - name: Run Tests with Coverage & Timeout
+        working-directory: managify-backend
+        run: |
+          go test -v -race -count=1 -timeout=3m -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+
+  security:
+    name: Security & Vulnerability Check
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go-cache
+
+      - name: Run govulncheck
+        working-directory: managify-backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          "$(go env GOPATH)/bin/govulncheck" ./...

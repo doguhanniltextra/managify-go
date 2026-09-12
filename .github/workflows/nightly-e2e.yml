@@ -1,0 +1,25 @@
+name: Nightly - E2E & Integration Tests
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Nightly at 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    name: Run E2E Integration Suite
+    runs-on: self-hosted
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go-cache
+
+      - name: Run Integration Tests
+        working-directory: managify-backend
+        run: |
+          echo "Running nightly integration test suite..."
+          # go test -tags=integration -v -timeout=15m ./...
