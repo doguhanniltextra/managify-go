@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"fmt"
 	"managify/constant"
 	"managify/internal/service"
 	"managify/models"
 	"managify/utils"
 	"sync"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -106,7 +104,6 @@ func DeleteProjectHandler(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /projects/{id} [get]
 func GetProjectHandler(c *fiber.Ctx) error {
-	start := time.Now()
 	projectIDHex := c.Params("id")
 	projectID, err := primitive.ObjectIDFromHex(projectIDHex)
 	if err != nil {
@@ -156,10 +153,6 @@ func GetProjectHandler(c *fiber.Ctx) error {
 
 	var statusesWithIssues []response.StatusWithIssues
 	for _, status := range statuses {
-		if _, err := service.GetIssueService().GetIssuesByStatusID(c.UserContext(), status.ID); err != nil {
-			fmt.Println(err)
-		}
-
 		statusesWithIssues = append(statusesWithIssues, response.StatusWithIssues{
 			ID:        status.ID,
 			ProjectID: status.ProjectID,
@@ -175,10 +168,6 @@ func GetProjectHandler(c *fiber.Ctx) error {
 		"statutes": statusesWithIssues,
 		"members":  teamMembers,
 	}
-
-	elapsed := time.Since(start)
-
-	fmt.Println(elapsed)
 
 	return c.JSON(fiber.Map{
 		"message": constant.SuccessFetched,
