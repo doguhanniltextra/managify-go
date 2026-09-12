@@ -1,0 +1,11 @@
+# Global owners for everything in the repository
+* @doguhanniltextra
+
+# CI/CD and deployment configurations
+/.github/ @doguhanniltextra
+/deploy/ @doguhanniltextra
+/render.yaml @doguhanniltextra
+/terraform/ @doguhanniltextra
+
+# Backend core
+/managify-backend/ @doguhanniltextra
