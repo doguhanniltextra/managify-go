@@ -215,12 +215,8 @@ func DeleteMemberFromProjectByIdHandler(c *fiber.Ctx) error {
 	err = service.GetProjectService().DeleteMemberFromProjectById(c.UserContext(), user.ID, memberIdObj)
 
 	if err != nil {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": constant.ErrInternalServer,
-		})
+		return HandleServiceError(c, err)
 	}
-
-	fmt.Print(err)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": constant.SuccessDeleted,
