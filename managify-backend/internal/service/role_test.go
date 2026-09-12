@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"managify/internal/repository"
 	"managify/models"
 	"testing"
@@ -58,16 +59,16 @@ func TestRoleService_AddRole(t *testing.T) {
 
 	// override global project service for the test
 	originalProjectService := projectService
-	originalProjectOnce := projectOnce
 	defer func() {
 		projectService = originalProjectService
-		projectOnce = originalProjectOnce
+		projectOnce = sync.Once{}
 	}()
 
-	projectOnce.Do(func() {})
 	projectService = &ProjectService{
 		projectRepo: mockProjectRepo,
 	}
+	projectOnce = sync.Once{}
+	projectOnce.Do(func() {}) // mark as done so GetProjectService() returns our mock
 
 	mockProjectRepo.On("VerifyProject", mock.Anything, projectId).Return(true, nil)
 	mockProjectRepo.On("CheckUserInProject", mock.Anything, projectId, userId).Return(true, nil)
