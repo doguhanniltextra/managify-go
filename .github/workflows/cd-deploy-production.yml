@@ -1,0 +1,44 @@
+name: CD - Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag to deploy (e.g. v1.0.4)'
+        required: false
+        default: 'latest'
+
+jobs:
+  deploy-production:
+    name: Deploy to Production Environment
+    runs-on: self-hosted
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trigger Render Production Deploy
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "::error ::RENDER_DEPLOY_HOOK_URL is not configured."
+            exit 1
+          fi
+          echo "Triggering deployment on Render production..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Successfully triggered Render deployment! (HTTP $HTTP_STATUS)"
+          else
+            echo "::error ::Failed to trigger Render deployment! HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Wait for Deployment & Smoke Test
+        env:
+          HEALTH_URL: ${{ secrets.PROD_SERVICE_HEALTH_URL }}
+        run: |
+          echo "Waiting 30 seconds before running health check..."
+          sleep 30
+          ./deploy/health-check.sh "${HEALTH_URL:-http://localhost:8080/health}" 15 10
+

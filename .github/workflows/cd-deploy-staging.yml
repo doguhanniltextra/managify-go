@@ -1,0 +1,43 @@
+name: CD - Deploy Staging
+
+on:
+  workflow_run:
+    workflows: ["CD - Release & Image Publish"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Environment
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    timeout-minutes: 10
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging
+        env:
+          STAGING_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK_URL }}
+        run: |
+          echo "Deploying to Staging environment..."
+          if [ -n "${STAGING_HOOK}" ]; then
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${STAGING_HOOK}")
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+              echo "Staging deploy triggered successfully! (HTTP $HTTP_STATUS)"
+            else
+              echo "::error ::Staging deploy hook failed with HTTP $HTTP_STATUS"
+              exit 1
+            fi
+          else
+            echo "::warning ::RENDER_STAGING_DEPLOY_HOOK_URL not configured. Skipping."
+          fi
+
+      - name: Health Check Smoke Test
+        env:
+          HEALTH_URL: ${{ secrets.STAGING_SERVICE_HEALTH_URL }}
+        run: |
+          ./deploy/health-check.sh "${HEALTH_URL:-http://localhost:8080/health}" 10 5
