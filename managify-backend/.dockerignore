@@ -1,0 +1,31 @@
+# Binaries
+main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build
+bin/
+dist/
+vendor/
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Go
+*.test
+*.out
+
+# Env
+.env
+.agent/
